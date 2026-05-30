@@ -18,21 +18,22 @@ Turn a PRD into a deep-module software design, one abstraction at a time, using
    opts in ("also read the repo" / "brownfield"), read the existing code too; every
    module in the map then carries a status: `KEEP` (exists, unchanged),
    `CHANGE` (exists, must change), or `BUILD` (new).
+4. **Ground the domain in a REAL artifact, not the PRD's example.** PRD examples are
+   idealized and hide structure. If the design touches a concrete artifact (a real
+   note, file, payload, record, API response), ask the user for one real sample and
+   read it. Real examples expose fields, links, edge cases, and naming hazards
+   (missing sections, graph/parent wiring, unsafe characters, optional parts) the
+   PRD omits — model the domain from the real thing. Skipping this is how an
+   abstraction ships looking complete while quietly dropping or orphaning data.
 
-## The rubric — use these exact terms everywhere
-- **Symptoms of complexity** (score every candidate on all three):
-  - **Change amplification** — one logical change forces edits in many places.
-  - **Cognitive load** — how much you must hold in your head to use it.
-  - **Unknown unknowns** — what you must know to use it correctly but can't tell you
-    need to know. (The worst symptom.)
-- **Causes of complexity**:
-  - **Dependencies** — a piece can't be understood or changed in isolation.
-  - **Obscurity** — important information isn't obvious.
-- **Deep-module bar** — a good abstraction has a *simple interface* and *large
-  functionality*, hiding implementation (a balanced tree exposes `insert/get/delete`
-  and hides rebalancing). Reject shallow modules whose interface is nearly as complex
-  as their implementation.
-- **Design it twice — here, thrice.** Never commit to the first interface.
+## The rubric — load `coding-guidelines` first
+Load the **coding-guidelines** skill and score every candidate against it, using its
+exact terms — the complexity symptoms (change amplification · cognitive load ·
+unknown unknowns), the causes (dependencies · obscurity), the deep-module bar, the
+shallow-module red flags (pass-through/ping-pong, echo-wrapper, ceremony interface,
+misnaming, premature generalization), naming, and "design it twice." Those
+definitions live there: do NOT restate them here, apply them. Every rubric verdict
+in this skill is phrased in those terms.
 
 ## Phase 1 — The most important thing  (GATE)
 From the user stories, identify the single most important thing: the problem whose
@@ -59,6 +60,22 @@ abstractions**, each with:
 - **Pros / cons** — stated in rubric terms (change amplification · cognitive load ·
   unknown unknowns · dependencies · obscurity)
 
+Before presenting, scrub each candidate against `coding-guidelines`' shallow-module
+red flags — a candidate that pings-pongs, wraps as a pass-through, adds a ceremony
+interface, or misnames a role is NOT ready to show. Catch it here, not after the
+user has to.
+
+**Forks become candidates, not questions.** When a design decision has several
+defensible answers (reconcile-on-start or not; one class or two; where parallelism
+lives), do NOT ask the user to resolve it in the abstract — make the three
+candidates DIFFER along that fork, give a rubric verdict, and recommend one. The
+user decides by picking a candidate. The ONLY things you stop to ask are the Phase 1
+anchor and the Phase 2 completion gate.
+
+**When depth is contested, decide at the call sites** (the call-site test in
+`coding-guidelines`): write the real usage everywhere the abstraction would be used,
+with it and without it, and let the diff expose the leak.
+
 The user picks one; move to the next responsibility.
 
 **Backward edges are allowed.** If designing a later module reveals an earlier DECIDED
@@ -70,15 +87,21 @@ old ones.
 start writing. Present the **full map** and ask the user to ratify nothing is missing.
 **STOP and wait.** Proceed only on sign-off.
 
-## Phase 3 — Write the design
-Emit the design as your final output, in this template. It is the user's to save — do
-not write files or post comments.
+## Phase 3 — Write the design INTO the PRD
+Once the completion gate is signed off (shared understanding reached), persist the
+design into the PRD issue's empty `# Design` section — that splice is the
+deliverable, not a chat message. The PRD already holds Problem Statement, Solution,
+User Stories, and Tech Stack (to-prd leaves `# Design` empty for you); fill ONLY the
+Design section, leaving every other section byte-for-byte untouched.
 
-    # Problem
-    <what is being solved — the Phase 1 anchor>
+Steps:
+1. Compose the Design section from the DECIDED map, in the format below.
+2. Fetch the current body: `gh issue view <number> --json body -q .body`.
+3. Splice the composed content into the empty `# Design` section. Do not rewrite
+   Problem/Solution/User Stories/Tech Stack.
+4. Write it back: `gh issue edit <number> --body-file <file>`. Return the issue URL.
 
-    # Solution
-    <high-level: the key abstractions and the details that solve most of the problems>
+Design section format:
 
     # Design
     ## <Abstraction>
@@ -91,8 +114,9 @@ not write files or post comments.
     - Candidate C — lost on {e.g. cognitive load}
     (repeat ## per abstraction)
 
-    # Dependencies
-    <the final wiring: which module depends on which>
+    ## Module Dependencies
+    <the final wiring: one directed "A → B" edge per line; independent modules on
+    separate lines>
 
 Keep the design **logical** — interfaces and wiring only. Do NOT specify file/directory
 layout; that is a downstream implementation decision.

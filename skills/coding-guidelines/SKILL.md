@@ -43,3 +43,16 @@ leakage that is when a piece of knowledge is known by mulple modules.
 ## When to separate methods?
 When the method encapsulate logic that is not required in the caller to understand the
 whole set of instructions.
+
+## Shallow modules (reject these)
+1. **Pass-through / ping-pong** A method or class that only forwards a call. If understanding one action makes you jump across two or more methods or classes, collapse it into a single deep method. This is the inverse of "When to separate methods?": separate only when the caller does not need the internals.
+2. **Echo-wrapper** A wrapper whose public methods echo the wrapped module's vocabulary (`get_field`, `execute`, `save`) is a pass-through; use the inner module directly. A wrapper whose methods speak domain vocabulary (`status`, `enqueue`, `correct`) is a deep skin; keep it. A skin exists to hold domain knowledge, never to relay the inner module's calls.
+3. **Ceremony interface** Do not add an interface, protocol, or abstract base for a type with a single implementation unless it earns its keep.
+4. **Premature generalization** A table, loop, or framework built for two cases. Right-size it.
+
+## Naming
+1. Name a variable, method, or class after the role it plays or the thing it produces, so name == type == intent.
+2. A method that returns corrected text is `correct`, not `review`. A variable typed as a role is named for the role, not the concrete class. A misleading name is a defect, not cosmetics.
+
+## Design it twice
+Never commit to the first interface; sketch two or three before choosing. When it is unclear whether an abstraction is deep or a needless wrapper, write the real usage at every call site with it and without it, and let the diff decide. Leaks (a field name, a format, a query fragment appearing in modules that should not know it) show up at the call site, not in the abstract.
