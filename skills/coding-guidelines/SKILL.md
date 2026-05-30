@@ -26,10 +26,23 @@ Provides a simple interface to use and provides a great functionallity by exposi
 in the interface and hides the unimportant things in the implementation. Also, deep modules prevent information
 leakage that is when a piece of knowledge is known by mulple modules.
 
+
+## Shallow modules (reject these)
+1. **Pass-through / ping-pong** A method or class that only forwards a call. If understanding one action makes you jump across two or more methods or classes, collapse it into a single deep method. This is the inverse of "When to separate methods?": separate only when the caller does not need the internals.
+2. **Echo-wrapper** A wrapper whose public methods echo the wrapped module's vocabulary (`get_field`, `execute`, `save`) is a pass-through; use the inner module directly. A wrapper whose methods speak domain vocabulary (`status`, `enqueue`, `correct`) is a deep skin; keep it. A skin exists to hold domain knowledge, never to relay the inner module's calls.
+3. **Ceremony interface** Do not add an interface, protocol, or abstract base for a type with a single implementation unless it earns its keep.
+4. **Premature generalization** A table, loop, or framework built for two cases. Right-size it.
+
 # Best practices
 
+## Creating generic deep modules
+1. Generic deep module should be designed in a way that will solve most of the problems from a feature.
+2. A deep module should have a generic interface but its implementation only contains what is required to complete a feature.
+3. Minimize the number of functions required to use the module, as long as the number of parameters don't extend 3 parameters.
+4. If a method or class will be called only once, then this is not a deep module and you need to rethink the deep module.
+
 ## Functions
-1. Common knowledge spread among the class in different methods needs to me merged into a single one.
+1. Before writing a private method, first ask your self if that will make you go back and forth to understand the main function.
 2. Variables spread among the class in different methods needs to be moved into a single method.
 3. Functions needs to be deep.
 
@@ -43,12 +56,6 @@ leakage that is when a piece of knowledge is known by mulple modules.
 ## When to separate methods?
 When the method encapsulate logic that is not required in the caller to understand the
 whole set of instructions.
-
-## Shallow modules (reject these)
-1. **Pass-through / ping-pong** A method or class that only forwards a call. If understanding one action makes you jump across two or more methods or classes, collapse it into a single deep method. This is the inverse of "When to separate methods?": separate only when the caller does not need the internals.
-2. **Echo-wrapper** A wrapper whose public methods echo the wrapped module's vocabulary (`get_field`, `execute`, `save`) is a pass-through; use the inner module directly. A wrapper whose methods speak domain vocabulary (`status`, `enqueue`, `correct`) is a deep skin; keep it. A skin exists to hold domain knowledge, never to relay the inner module's calls.
-3. **Ceremony interface** Do not add an interface, protocol, or abstract base for a type with a single implementation unless it earns its keep.
-4. **Premature generalization** A table, loop, or framework built for two cases. Right-size it.
 
 ## Naming
 1. Name a variable, method, or class after the role it plays or the thing it produces, so name == type == intent.

@@ -1,6 +1,6 @@
 ---
 name: to-prd
-description: Use when the user asks to generate a PRD. Assesses context, grills if needed, optionally explores the codebase, then creates a GitHub issue.
+description: Use when the user asks to generate a PRD. Assesses context, grills if needed, optionally explores the codebase, then creates a PRD document.
 ---
 
 # Behavior
@@ -8,8 +8,8 @@ description: Use when the user asks to generate a PRD. Assesses context, grills 
 1. **Assess context** — read the current conversation. If the problem, solution, and at least some user stories are already clear, proceed to step 3. If context is thin, go to step 2.
 2. **Grill** — load and execute the `grill-me` skill. Interview the user until problem statement, solution, user stories, and tech stack are all resolved.
 3. **Optional codebase exploration** — if after grilling any section still lacks the depth needed to write it accurately (e.g. tech stack is unclear), explore the codebase. Read only what is necessary to fill the gap. Skip if context is already sufficient.
-4. **Draft the PRD** — produce the full markdown using the template below. **Leave the `# Design` section empty** — it is authored later by the `deep-design` skill, which splices the module design into it. Do NOT design modules here. Show the PRD to the user and wait for explicit confirmation before creating the issue.
-5. **Create GitHub issue** — run `gh issue create --title "<title>" --body "<prd-markdown>"`. Return the issue URL.
+4. **Draft the PRD** — produce the full markdown using the template below. Show the PRD to the user and wait for explicit confirmation before creating the issue.
+5. **Create PRD document** — Create a directory docs/{feature_name}/prd.md
 
 ---
 
@@ -29,12 +29,6 @@ When <action>
 [And <additional action>]
 Then <observable outcome>
 [And <additional outcome>]
-
-# Design
-
-<Leave this section empty. The `deep-design` skill authors it later — designing the
-deep modules one at a time with the user, then splicing the module design and a
-`## Module Dependencies` subsection into this section. Do NOT design modules in the PRD.>
 
 ---
 
