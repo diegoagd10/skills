@@ -3,6 +3,20 @@
 > Part of **coding-guidelines**. Read `deep-modules.md` first. This is the
 > system-structure lens: it governs how stacked layers relate.
 
+Use this reference when code crosses controllers, services, repositories,
+adapters, decorators, middleware, context objects, or error boundaries. It is the
+right lens for pass-through methods, pass-through variables, global/static
+shortcuts, and error translation that may or may not add meaning.
+
+Role routing:
+
+- **Architect:** decide which layers deserve to exist and what new abstraction
+  each layer contributes.
+- **Developer:** wire dependencies without forwarding parameters through methods
+  that do not use them and without hiding dependencies in globals.
+- **Reviewer:** flag layers that relay instead of transform, and translations that
+  wrap errors without changing the abstraction.
+
 Software is built in layers: higher layers use the facilities of lower ones. The
 rule: **each layer must provide a DIFFERENT abstraction from the layer above and
 below it.** When two adjacent layers describe the world with the same methods,
@@ -192,6 +206,11 @@ The principle: the way to kill a pass-through variable is to give the object a
 a global. Static "solves" the syntax while resurrecting the deeper disease —
 hidden dependencies. (The context object is itself a compromise — a grab-bag of
 state — but a far smaller evil than pass-through variables smeared everywhere.)
+
+A context object is acceptable only while it remains a coherent bundle of state
+needed by this object or pipeline. If unrelated fields accumulate because it is
+convenient to pass one thing everywhere, the context has become a junk drawer and
+the boundary needs to be redrawn.
 
 ### Rules of thumb (layers)
 

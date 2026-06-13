@@ -4,6 +4,20 @@
 > and `deep-modules.md` first — this is the primary *technique* for reaching the
 > depth those describe.
 
+Use this reference when a decision appears in more than one place, an interface
+exposes data structures/formats/units/magic constants, callers repeat validation
+or normalization, two modules share an unstated assumption, or a proposed fix
+tries to hide information callers genuinely need.
+
+Role routing:
+
+- **Architect:** assign each design decision one owner and decide what the public
+  contract must expose.
+- **Developer:** keep internal decisions private while making required inputs and
+  external failures explicit.
+- **Reviewer:** comment in this shape: "This leaks decision X into Y and Z; give
+  X one owner so changes touch one place."
+
 Deep modules are the goal; **information hiding is the primary technique** for
 reaching it. Each module should encapsulate a piece of *knowledge* — a design
 decision — that lives in its implementation but is **invisible through its

@@ -1,8 +1,23 @@
 # Writing Classes — Better Together or Better Apart?
 
-> Part of **coding-guidelines**. Read `deep-modules.md` and
-> `information-hiding.md` first. This is the class-boundary decision — where one
-> module ends and the next begins.
+> Part of **coding-guidelines**. Read `deep-modules.md` first. Open
+> `information-hiding.md` when shared knowledge, duplicated decisions, leaked
+> invariants, or hidden assumptions appear. This is the class-boundary decision —
+> where one module ends and the next begins.
+
+Use this reference when deciding whether classes belong together or apart:
+Reader/Writer or Step1/Step2 splits, shared invariants, duplicated format or
+protocol knowledge, bidirectional use, one-directional dependencies, or a class
+that can represent invalid state.
+
+Role routing:
+
+- **Architect:** draw class boundaries by ownership of knowledge, not execution
+  order.
+- **Developer:** keep invariants inside construction, factories, or state
+  transitions instead of forcing callers to repair public state.
+- **Reviewer:** flag temporal decomposition, duplicated knowledge, and merges
+  justified only by "A calls B."
 
 Before writing functions, decide the CLASS boundaries. Same question as
 everywhere else: **which split reduces overall complexity?** More classes is not

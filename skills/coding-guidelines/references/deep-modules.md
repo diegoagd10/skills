@@ -4,6 +4,20 @@
 > first. This file is the master yardstick the other references apply at their
 > own scope.
 
+Use this reference when a boundary is being created, removed, or judged: module,
+class, function, subsystem, helper, wrapper, adapter, or API. It is also the
+right lens when callers repeat common setup, a helper hides almost nothing, or a
+design creates many tiny pieces that must be understood together.
+
+Role routing:
+
+- **Architect:** decide whether a proposed boundary hides enough knowledge to
+  justify its interface.
+- **Developer:** decide whether to extract, inline, join, or keep a function/class
+  based on depth rather than size.
+- **Reviewer:** flag shallow modules, classitis, wrappers, and APIs that push the
+  common case onto callers.
+
 A **module** is anything with an **interface** and an **implementation**: a
 class, a function, a subsystem. The interface is everything a caller must know to
 USE the module; the implementation is the code that DOES the work. The entire

@@ -31,6 +31,114 @@ single question to hold in your head while you work.
 
 ---
 
+## Activation Contract
+
+Use this skill when the task involves any code/design boundary:
+
+- Designing a system, subsystem, class, function, module, API, or layer.
+- Implementing or refactoring code where boundaries, names, helpers, state,
+  validation, errors, or dependencies may change.
+- Reviewing a diff, PR, architecture proposal, or code sample for design quality.
+- Explaining whether code is simple, complex, over-split, too coupled, or too
+  abstract.
+
+Do not use this skill for purely mechanical edits that do not affect design
+quality: typo fixes, formatting-only changes, dependency bumps with no code
+impact, or one-off factual questions unrelated to structure.
+
+Before acting, choose the role you are playing:
+
+- **Architect** if the boundary does not exist yet or is being redrawn.
+- **Developer** if you are writing or refactoring implementation.
+- **Reviewer** if you are judging already-written code or a diff.
+
+If a task mixes roles, run them in order: **Architect → Developer → Reviewer**.
+Do not skip the reviewer lens after non-trivial edits.
+
+---
+
+## Situation Routing
+
+| Situation | Role to use | Required references | Produce |
+|---|---|---|---|
+| New subsystem, module, class family, API, or layer | Architect | `deep-modules.md`, `classes.md`, `layers.md`, `general-purpose.md`, `information-hiding.md` | Boundary decision, hidden knowledge, exposed contract, rejected alternatives, risks |
+| Redrawing existing boundaries | Architect, then Reviewer | `deep-modules.md`, `classes.md`, `information-hiding.md`, plus `layers.md` if layers change | New ownership map and migration risks |
+| Implementing a function or class | Developer | `functions.md`, `classes.md`, `information-hiding.md`, `deep-modules.md` | Code that keeps dependencies explicit and hides internal decisions |
+| Refactoring/extracting helpers | Developer, then Reviewer | `functions.md`, `deep-modules.md`, `classes.md` | Justification for split/join based on independence, not line count |
+| Designing a public method/API | Architect or Developer | `general-purpose.md`, `information-hiding.md`, `deep-modules.md` | Interface that is somewhat general, easy for current callers, and not vague |
+| Wiring controllers/services/repositories/adapters | Developer | `deep-modules.md`, `layers.md`, `information-hiding.md` | Layers that transform abstractions instead of forwarding |
+| Modeling validation, parsing, state transitions, or errors | Architect or Developer | `information-hiding.md`, `classes.md`, `deep-modules.md`, `layers.md` | Trust boundary, canonical value/state, explicit external failures |
+| Reviewing a PR/diff/code sample | Reviewer | Start with the red-flag index below, then open matching references | Findings ordered by severity with smell, why it matters, and fix direction |
+| Adding or reviewing comments/docs | Architect, Developer, or Reviewer | `comments.md`, plus the reference for the boundary being documented | Comments that explain intent, contracts, invariants, and non-obvious constraints |
+| Writing tests only | Developer or Reviewer | `functions.md`; add `deep-modules.md` and `information-hiding.md` if tests expose hidden coupling | Tests that verify behavior without cementing internal implementation details |
+
+---
+
+## Hard Rules
+
+- Judge complexity by **reader/change cost**, not by author intent, line count, or
+  number of files.
+- Do not split code only because it is long. Split only when the new pieces are
+  independently understandable and deeper than their interface cost.
+- Do not merge code only because one piece calls another. Merge when they share
+  knowledge, invariants, or cannot be understood independently.
+- Do not hide fundamental dependencies. Required inputs belong in signatures,
+  constructors, or explicit context, not globals or secret ordering.
+- Do not push repeated setup, validation, retries, formatting, or state checks to
+  every caller when one module can own the rule.
+- Do not pretend modeling eliminates external failures. Network, filesystem,
+  permission, cancellation, race, and third-party failures must remain explicit
+  when callers need to react.
+- Do not add comments or abstractions to compensate for bad boundaries. Fix the
+  boundary first; document the non-obvious contract after.
+
+---
+
+## Execution Steps
+
+1. Identify the situation and role from the routing table.
+2. Read *The Nature of Complexity* below, then only the required references and
+   any prerequisites named at the top of those references.
+3. Name the dominant complexity symptom: change amplification, cognitive load,
+   or unknown unknowns.
+4. Name the likely cause: dependency or obscurity.
+5. Apply the checklist from each routed reference.
+6. Act according to the role: design, implement, or review.
+7. Return the role-specific output contract below.
+
+---
+
+## Output Contract
+
+**Architect output** must include:
+
+- Boundary chosen.
+- Knowledge hidden inside each module.
+- Contract exposed to callers.
+- Invalid states or repeated rituals removed, if any.
+- Important alternatives rejected and why.
+- Residual risks or open questions.
+
+**Developer output** must include:
+
+- What changed.
+- Which complexity symptom was reduced.
+- How dependencies were made explicit or hidden knowledge was contained.
+- Any tradeoff kept intentionally.
+- Verification performed, when applicable.
+
+**Reviewer output** must include:
+
+- Findings first, ordered by severity.
+- File/line reference when available.
+- Smell name from this skill.
+- Why it increases complexity.
+- Concrete fix direction without rewriting the whole solution unless asked.
+
+If there are no findings, say so and mention residual risks or testing gaps.
+
+---
+
 ## The Nature of Complexity — read this FIRST (all personas)
 
 Every rule in every reference is a tool to fight ONE enemy: complexity.
@@ -216,7 +324,7 @@ developer, AND reviewer.
 
 ## The reference library
 
-Six deep dives, each self-contained with its own examples, rules of thumb, and a
+Seven deep dives, each self-contained with its own examples, rules of thumb, and a
 finalizing checklist. Read by role (see Persona Guides) — not front to back.
 
 | Reference | Scope | Core question it answers |
@@ -227,8 +335,9 @@ finalizing checklist. Read by role (see Persona Guides) — not front to back.
 | `references/layers.md` | System structure | Does each layer add a NEW abstraction, or just relay one? |
 | `references/classes.md` | Class boundaries | Together or apart — by knowledge, never by execution order? |
 | `references/functions.md` | Implementation | Can each function be understood on its own? |
+| `references/comments.md` | Comments & documentation | What must be written down because code cannot say it clearly? |
 
-`deep-modules.md` is the master yardstick; the other five are tactics that serve
+`deep-modules.md` is the master yardstick; the other references are tactics that serve
 it. When in doubt, that file is the one nobody skips.
 
 ---
@@ -334,6 +443,8 @@ precise argument and the fix.
 | A `static`/global introduced to "clean up" params | Hidden dependency trap | `layers.md` |
 | Two functions you must read together to follow | Conjoined functions | `functions.md` |
 | A function split purely to be shorter | Over-splitting by line count | `functions.md` |
+| A comment repeats the code or excuses confusing code | Low-value comment / bad boundary | `comments.md`, then the boundary reference |
+| A public API, invariant, workaround, or design reason is not documented | Missing design comment | `comments.md` |
 
 For a thorough review, run the **"Checklist before finalizing…"** at the end of
 whichever reference the diff touches — those checklists are written to be applied

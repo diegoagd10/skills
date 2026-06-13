@@ -3,6 +3,20 @@
 > Part of **coding-guidelines**. Read `deep-modules.md` first — this applies the
 > depth yardstick to *how general* an interface is.
 
+Use this reference when designing or reviewing an interface's level of generality:
+a method exists for exactly one caller, lower layers know UI/workflow-specific
+details, an API is so abstract that callers need glue code, or a catch-all shape
+(`Object`, raw `String`, map of options) makes invalid combinations easy.
+
+Role routing:
+
+- **Architect:** choose primitives and public operations before implementation
+  details calcify.
+- **Developer:** shape helpers and methods around current repeated needs without
+  leaking caller-specific workflow downward.
+- **Reviewer:** flag both extremes: special-purpose methods that belong in the
+  caller and speculative/vague APIs that are hard to use safely.
+
 When you build a module, lean toward a **general-purpose interface** rather than
 one tailored to today's exact caller. General-purpose modules tend to be
 *deeper*: a small, stable interface that serves many uses hides more than a pile

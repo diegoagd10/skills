@@ -1,7 +1,21 @@
 # Writing Functions — Better Together or Better Apart?
 
-> Part of **coding-guidelines**. Read `deep-modules.md` first. This is the
-> implementation-level lens: where one function ends and the next begins.
+> Part of **coding-guidelines**. If you have not loaded `deep-modules.md`, use the
+> depth checklist here and open `deep-modules.md` when extraction depth is
+> unclear. This is the implementation-level lens: where one function ends and the
+> next begins.
+
+Use this reference when writing or reviewing function boundaries: extracting a
+helper, inlining a helper, splitting a long function, joining conjoined
+functions, removing hidden call order, replacing validation rituals, or deciding
+whether a function can be understood on its own.
+
+Role routing:
+
+- **Architect:** skim for the same independence test you apply at module scale.
+- **Developer:** split or join by independence and depth, never by line count.
+- **Reviewer:** flag conjoined functions, hidden preconditions, shared mutable
+  state, and over-splitting.
 
 When deciding whether functionality should be one function or several, the
 only question that matters is: **which option reduces overall complexity?**
