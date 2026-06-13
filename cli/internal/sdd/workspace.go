@@ -62,6 +62,7 @@ func listActiveChanges(root string) ([]string, error) {
 	return changes, nil
 }
 
+// contains reports whether needle is in values.
 func contains(values []string, needle string) bool {
 	for _, value := range values {
 		if value == needle {
@@ -71,6 +72,7 @@ func contains(values []string, needle string) bool {
 	return false
 }
 
+// firstPath returns paths[0] or "" if empty.
 func firstPath(paths []string) string {
 	if len(paths) == 0 {
 		return ""

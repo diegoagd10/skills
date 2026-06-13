@@ -156,8 +156,8 @@ func runInstall(args []string, stdout, stderr io.Writer, remove bool) int {
 	return 0
 }
 
-// homeConfig fills the home-dir defaults from $HOME — this is the CLI layer's
-// job, not the deep module's.
+// homeConfig returns a Config with all paths rooted under $HOME. The deep
+// module accepts absolute paths so it stays testable against temp dirs.
 func homeConfig(repoDir string) install.Config {
 	home := os.Getenv("HOME")
 	return install.Config{

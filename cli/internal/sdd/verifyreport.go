@@ -11,6 +11,10 @@ import (
 // line AND zero blocker lines. The patterns below mirror the reference
 // implementation exactly — this heuristic is the trickiest contract in the
 // package and small wording differences change the outcome.
+//
+// See the test cases in verifyreport_test.go for the specific wording patterns
+// that are known to matter. Patterns that differ from these regexes — even
+// subtly — have produced wrong outcomes in practice.
 var (
 	// reportField parses an optionally-bulleted, optionally-bold "Label: value"
 	// line, capturing the label and the value.
