@@ -267,10 +267,10 @@ func TestOpenCodeSDDAssetsPreferAIHarnessNativeDispatcher(t *testing.T) {
 		path     string
 		required []string
 	}{
-		{filepath.Join(repoRoot, "agent-cli", "opencode", "commands", "sdd-status.md"), []string{"ai-harness sdd-status"}},
-		{filepath.Join(repoRoot, "agent-cli", "opencode", "commands", "sdd-continue.md"), []string{"ai-harness sdd-continue"}},
-		{filepath.Join(repoRoot, "agent-cli", "opencode", "skills", "_shared", "sdd-status-contract.md"), []string{"ai-harness sdd-status", "ai-harness sdd-continue"}},
-		{filepath.Join(repoRoot, "agent-cli", "opencode", "sdd-orchestrator.md"), []string{"ai-harness sdd-status", "ai-harness sdd-continue"}},
+		{filepath.Join(repoRoot, "agent-clis", "opencode", "commands", "sdd-status.md"), []string{"ai-harness sdd-status"}},
+		{filepath.Join(repoRoot, "agent-clis", "opencode", "commands", "sdd-continue.md"), []string{"ai-harness sdd-continue"}},
+		{filepath.Join(repoRoot, "agent-clis", "opencode", "skills", "_shared", "sdd-status-contract.md"), []string{"ai-harness sdd-status", "ai-harness sdd-continue"}},
+		{filepath.Join(repoRoot, "agent-clis", "opencode", "sdd-orchestrator.md"), []string{"ai-harness sdd-status", "ai-harness sdd-continue"}},
 	}
 
 	for _, asset := range assets {

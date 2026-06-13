@@ -77,6 +77,38 @@ void dispatch(Request req, Response res) {
 The test is never "do the signatures match?" — it is **"does this layer choose,
 transform, or add — or does it only forward?"**
 
+### Error translation must change the abstraction
+
+A layer that only catches an avoidable internal error and rethrows another
+avoidable error is usually pass-through complexity. If the invalid case should
+have been impossible inside the system, fix the model instead of stacking error
+wrappers.
+
+```java
+// BAD: translation without a new abstraction; raw invalid state leaked inward.
+try {
+    userService.invite(rawEmail);
+} catch (InvalidEmailException e) {
+    throw new BadRequestException("invalid email", e);
+}
+
+// GOOD: the boundary parses; inner service never sees the avoidable error.
+EmailAddress email = EmailAddress.parse(rawEmail);
+userService.invite(email);
+```
+
+But translating external failures at a boundary is real work when it changes the
+abstraction for callers:
+
+```java
+// GOOD: a filesystem failure becomes a domain-level storage failure.
+try {
+    fileStore.save(document);
+} catch (IOException e) {
+    throw new DocumentStorageUnavailable(e);
+}
+```
+
 ### ❌ NEGATIVE — decorators that duplicate an API to tweak 1%
 
 ```java
@@ -170,6 +202,9 @@ state — but a far smaller evil than pass-through variables smeared everywhere.
   choosing an implementation. Pure forwarding is not new work.
 - **Be suspicious of decorators.** Prefer folding the behavior into the base
   class or a standalone class over mirroring an API to change one thing.
+- **Error translation must add meaning.** Translating external failures at a
+  boundary is useful; wrapping avoidable internal invalid states is often a sign
+  the model still permits errors it should define out of existence.
 - **Kill pass-through variables by reference, not by globals.** Collapse them
   into one context, inject it once as an instance field; never reach for a
   static/global "shortcut" — it reintroduces obscurity.
@@ -184,6 +219,8 @@ state — but a far smaller evil than pass-through variables smeared everywhere.
    a context and inject it once — do NOT make it global/static.
 4. Am I about to write a decorator that mostly mirrors an existing API? Could it
    be a base-class change or a standalone class instead?
+5. Does this layer translate errors into a genuinely new abstraction, or merely
+   rewrap avoidable invalid states that should not exist here?
 
 > Every layer must change the abstraction. If a layer looks like the one next to
 > it — same methods, same variables, same words — it probably shouldn't exist.

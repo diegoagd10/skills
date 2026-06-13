@@ -95,11 +95,33 @@ double price(Order o) {
 }
 ```
 
+### Hidden preconditions are part of the interface
+
+If a function only works after callers run `validateX()` or check a status flag,
+that ritual is part of the interface even when it is not in the signature. The
+split creates an avoidable error: callers can forget the ritual.
+
+```java
+// BAD: invite assumes a validation ritual the signature does not show.
+validateEmail(rawEmail);
+invite(rawEmail);
+
+// GOOD: parsing produces a stronger value; invite cannot be called with a raw,
+// unchecked email.
+EmailAddress email = EmailAddress.parse(rawEmail);
+invite(email);
+```
+
+Do not turn every primitive into a class. Use stronger values when they remove a
+real repeated precondition, invariant, or invalid state from inner code.
+
 ### Rules of thumb
 
 - **Do NOT split** when: only chasing a line limit; the split leaks shared
   state / required call order / hidden preconditions; or the child needs most
   of the parent's locals passed in and handed back.
+- **Do NOT leave validation rituals beside a function** when the function can
+  accept a canonical/domain value or own the state transition itself.
 - **DO split** when each piece is independently understandable AND it is a
   general-purpose subtask, a pure transformation, or a genuinely separate
   responsibility.
@@ -114,6 +136,9 @@ double price(Order o) {
    to justify the extra interface a reader must now learn?
 4. Is there any hidden dependency (shared field, required call order, leftover
    stream position) between split functions? If yes, redesign the boundary.
+5. Does the function require callers to perform the same validation or state
+   check first? If yes, make that precondition explicit in the type/shape or move
+   the rule behind the function boundary.
 
 > The cost of every function is its interface. A split only pays off when the
 > new abstractions are deeper than the cost of the interface you just added.

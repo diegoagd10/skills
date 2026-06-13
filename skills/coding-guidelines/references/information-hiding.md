@@ -103,6 +103,46 @@ service.register(username);               // the service trusts its input:
 Now the rule has one home. Change it once; no layer can disagree; there is no
 dead defensive check left for the next reader to puzzle over.
 
+### Define errors out of existence
+
+Validation rules and invariants are design decisions. If an invalid state can be
+made impossible to represent, hide that decision behind a boundary parser,
+factory, constructor, or state-transition method instead of leaking the invalid
+case into every caller.
+
+```java
+// BAD: every caller can pass an invalid email. The service must defend itself
+// or trust callers to remember a hidden precondition.
+if (!rawEmail.contains("@")) throw new BadRequestException();
+userService.invite(rawEmail);
+
+// GOOD: the boundary owns parsing. Inner code receives a canonical value whose
+// validity is no longer an open question.
+EmailAddress email = EmailAddress.parse(rawEmail);
+userService.invite(email);
+```
+
+The service interface becomes simpler because `InvalidEmail` is no longer part
+of its world. The error was not ignored; it was handled at the trust boundary and
+removed from the inner model.
+
+The same applies to state transitions:
+
+```java
+// BAD: the caller owns the order invariant.
+if (order.status() != PAID) throw new IllegalStateException("Cannot ship");
+order.setStatus(SHIPPED);
+
+// GOOD: the order owns the invariant and transition.
+order.ship();
+```
+
+Do not over-apply this. External failures are not design mistakes: network
+timeouts, filesystem errors, permission changes, user cancellation, concurrency
+races, and third-party failures still require explicit handling. The target is
+avoidable internal/modeling errors: invalid combinations your own API made
+representable.
+
 ### Where the line actually is — re-checking ACROSS trust boundaries is correct
 
 This does NOT mean "never validate twice." Re-checking is RIGHT when the second
@@ -160,6 +200,14 @@ For every element you're about to put in an interface, ask:
   the same decision in inner layers of the same process is leakage, not safety —
   and often a dead no-op. Re-checking ACROSS a trust boundary (a server
   re-validating a client) is correct: different threat, different decision.
+- **Define avoidable errors out of existence.** Prefer canonical/domain values
+  over raw strings, maps, booleans, or status fields once input crosses a trust
+  boundary.
+- If every caller checks the same precondition before calling, redesign the
+  callee/model so the invalid call cannot be expressed.
+- **Keep external failures explicit.** Do not hide network, filesystem,
+  permission, cancellation, race, or third-party failures as if better modeling
+  could make them disappear.
 - **Don't over-hide.** If a caller truly needs it, exposing it is correct;
   hiding it just spawns workarounds.
 - When the same knowledge appears in two modules, factor it into one owner (see
@@ -175,5 +223,9 @@ For every element you're about to put in an interface, ask:
 4. Am I re-validating or re-sanitizing a value that an inner layer already
    received from a trusted caller in the same process? If the check defends no
    NEW threat, remove it and decide once at the boundary.
-5. Within the class, am I exposing method internals that could stay private?
-6. Am I over-hiding something the caller must have, forcing a workaround?
+5. Can this invalid state be made unrepresentable instead of checked in every
+   caller?
+6. Am I propagating an error inward that should have been parsed, normalized, or
+   rejected at the trust boundary?
+7. Within the class, am I exposing method internals that could stay private?
+8. Am I over-hiding something the caller must have, forcing a workaround?

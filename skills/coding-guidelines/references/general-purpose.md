@@ -17,6 +17,11 @@ The target is **general interface, specific implementation**: the interface is
 general enough to cover several current uses and survive small requirement
 changes, while the guts implement only what you need today.
 
+Generality does not mean accepting arbitrary raw values and discovering invalid
+combinations at runtime. A good general interface exposes meaningful primitives
+and domain values; a vague interface (`Object`, raw `String`, `Map<String,
+Object>`) often makes invalid states easier to express.
+
 ### ❌ NEGATIVE — special-purpose interface (shallow, leaks the caller)
 
 The text class is designed around UI gestures — one method per key.
@@ -106,6 +111,8 @@ Ask these to locate the sweet spot between too special and too general:
   of knowledge about who uses it.
 - **Don't overshoot.** If calling your own module needs reams of glue, it's too
   general — that's speculative generality, not depth.
+- **Do not confuse vague with general.** Prefer safe primitives/domain values over
+  raw catch-all parameters that make invalid combinations easy.
 
 ### Checklist before finalizing a module's generality
 
@@ -117,6 +124,7 @@ Ask these to locate the sweet spot between too special and too general:
    into a lower-level module? Push it up.
 4. Am I generalizing for a need that doesn't exist yet (speculative)? If yes,
    pull back to "somewhat general-purpose".
+5. Did I make the API so vague that invalid combinations are easy to express?
 
 > Make the interface general, make the implementation special, and push the
 > special-purpose decisions up to the caller. That is what makes a module deep.

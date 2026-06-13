@@ -173,6 +173,36 @@ Do not confuse this with hiding fundamental dependencies. Required inputs should
 still be explicit. The point is to hide internal decisions, not to create magic
 or global state.
 
+### Define avoidable errors out of existence
+
+The best error handling is often a better interface: if an invalid state can be
+made impossible to represent, do that instead of forcing every caller to check,
+throw, catch, document, and test the same invalid case.
+
+```javascript
+// BAD: every caller can pass an invalid email, so every layer must wonder.
+await userService.invite(request.body.email);
+
+// GOOD: untrusted input is parsed once at the boundary; inner code receives a
+// value whose validity is part of its type/shape.
+const email = EmailAddress.parse(request.body.email);
+await userService.invite(email);
+```
+
+This is not "ignore errors." It is a boundary discipline:
+
+- Validate untrusted input at trust boundaries and convert it into canonical
+  domain values.
+- Let inner modules depend on those stronger values instead of re-handling the
+  same invalid cases.
+- Keep irreducible external failures explicit: network timeouts, filesystem
+  errors, permissions, cancellation, races, and third-party failures still belong
+  in the interface.
+
+If every caller checks the same precondition before calling a function, the
+callee or model is probably too weak. Redesign so the invalid call cannot be
+expressed.
+
 ### Complexity is incremental — zero tolerance
 
 It never arrives in one catastrophe. It accumulates from tiny increments — one
@@ -217,7 +247,8 @@ your leverage is highest and your reading is broadest.
 Read, in this order:
 
 1. **`deep-modules.md`** — the yardstick for every boundary. Deep over shallow;
-   reject classitis. This is non-negotiable.
+   reject classitis, and make avoidable misuse hard or impossible. This is
+   non-negotiable.
 2. **`classes.md`** — *better together or apart?* Decompose by **knowledge**,
    never by order of execution (temporal decomposition). The class boundary IS
    the architectural decision.
@@ -230,6 +261,9 @@ Read, in this order:
 
 At boundary time, ask: "Can this module make the decision itself?" If yes, pull
 that complexity downward so callers state intent rather than coordinating steps.
+Also ask: "Can this invalid state be made unrepresentable?" If yes, model that
+state transition or canonical value at the boundary instead of spreading error
+handling across the system.
 
 You can skim `functions.md` — it's the developer's altitude. But the principle
 (independence test) is the same one you apply to modules.
@@ -265,6 +299,11 @@ While writing, watch for call sites that repeat setup, validation, retries,
 formatting, or state checks. That repetition is usually a signal that the callee
 should absorb the rule.
 
+When a function begins with a cluster of precondition checks, do not merely add a
+helper named `validateX`. Ask whether the function should accept a stronger
+value (`EmailAddress`, `NonEmptyCart`, `PaidOrder`) or whether construction/state
+transition should prevent the invalid case earlier.
+
 ### 🔍 REVIEWER — auditing a change *after* it's written
 
 Your altitude is **the diff**. You are a gate: your job is to catch the small
@@ -281,6 +320,7 @@ precise argument and the fix.
 |---|---|---|
 | Same value/decision duplicated across files | Change amplification | `information-hiding.md`, `classes.md` |
 | Callers repeat setup/validation/retry/formatting/state-transition rituals | Complexity pushed upward | `information-hiding.md`, `deep-modules.md` |
+| APIs accept raw values or states that every caller must defensively reject | Avoidable errors still representable | `information-hiding.md`, `deep-modules.md`, `classes.md` |
 | Magic numbers, cryptic names, hidden ordering | Obscurity | `SKILL.md` (Nature of Complexity) |
 | A wrapper whose interface ≈ its body | Shallow module | `deep-modules.md` |
 | Many tiny classes/methods to do one thing | Classitis | `deep-modules.md` |

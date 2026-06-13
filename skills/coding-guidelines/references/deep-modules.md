@@ -89,6 +89,26 @@ A deep interface is designed so the **most frequent use needs the least code**.
 Push the rare, advanced knobs behind defaults; never make every caller pay for
 the edge case.
 
+### Make invalid use hard or impossible
+
+A deep module also absorbs common validity rules. If every caller must remember a
+precondition before calling, the interface is wider than it looks: the hidden
+precondition is part of the interface cost.
+
+```java
+// BAD: the caller must know a paid order is required.
+if (order.status() != PAID) throw new IllegalStateException("Cannot ship");
+shippingService.ship(order);
+
+// GOOD: the module exposes the meaningful operation and owns the invariant.
+order.ship();
+```
+
+This applies only to avoidable misuse and invalid internal states. External
+failures still need explicit representation; a deep file-storage module may hide
+retry mechanics, but it must still expose "storage unavailable" if callers need
+to react.
+
 ### Rules of thumb (modules)
 
 - **Depth, not size, is the measure.** Don't count lines or classes; weigh
@@ -97,6 +117,8 @@ the edge case.
   interconnections — pay only for real depth.
 - **Design the common case to be simple**; defaults absorb complexity, knobs stay
   optional.
+- **Make avoidable invalid use hard or impossible**; do not make every caller pay
+  for the same precondition or state check.
 - A module whose interface is as complex as its body is **shallow** — inline it
   or redraw the boundary so it hides something real.
 
@@ -104,9 +126,11 @@ the edge case.
 
 1. Is the interface meaningfully **smaller** than the implementation it hides?
 2. Does the common case require minimal knowledge from the caller?
-3. Am I adding a module that hides nothing (interface ≈ implementation)? If yes,
+3. Does the interface force callers to handle avoidable invalid cases, or does it
+   make those cases unrepresentable?
+4. Am I adding a module that hides nothing (interface ≈ implementation)? If yes,
    inline it.
-4. Am I splitting into many shallow pieces (classitis) when one deep module would
+5. Am I splitting into many shallow pieces (classitis) when one deep module would
    be simpler overall?
 
 > The best modules provide powerful functionality behind a simple interface.

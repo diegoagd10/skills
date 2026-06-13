@@ -1,4 +1,4 @@
-# agent-cli/opencode
+# agent-clis/opencode
 
 Faithful copy of the **OpenCode** SDD (Spec-Driven Development) configuration that
 [`gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) generates. Staged

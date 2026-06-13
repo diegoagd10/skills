@@ -22,6 +22,8 @@ Combine them if ANY of these hold:
 
 - **They share information** — both depend on the same knowledge (a file format,
   a wire protocol, a schema). Splitting smears that knowledge across two places.
+- **They maintain one invariant** — validity depends on them coordinating. If
+  split classes must agree to prevent an invalid state, the invariant leaked.
 - **They are used together bidirectionally** — whenever you touch one you touch
   the other. (A *one-directional* dependency is NOT enough — see below.)
 - **They overlap conceptually** — one simple higher-level category covers both.
@@ -118,13 +120,17 @@ class NetworkDriver {
 - **Separate general-purpose from special-purpose.** A general mechanism lives in
   its own class; the special-purpose code that uses it lives elsewhere.
 - When you spot the same knowledge in two classes, factor it into one owner.
+- A class should protect its own invariants through construction, factories, and
+  state-transition methods; avoid public states that callers must repair later.
 
 ### Checklist before finalizing a class boundary
 
 1. Can each class be understood and changed without reading the other?
 2. Is any design decision (format, protocol, invariant) duplicated across two
    classes? If yes, combine them or extract a shared owner.
-3. Did I split on *order of execution* rather than *knowledge*? If yes, redraw.
-4. Am I merging only because of a one-directional "uses" relationship? If yes,
+3. Can this class represent an invalid state? If yes, should construction,
+   factories, or state-transition methods prevent it?
+4. Did I split on *order of execution* rather than *knowledge*? If yes, redraw.
+5. Am I merging only because of a one-directional "uses" relationship? If yes,
    keep them apart.
-5. Is general-purpose code kept free of special-purpose details?
+6. Is general-purpose code kept free of special-purpose details?
