@@ -131,6 +131,48 @@ function rankRouteScore(distanceKm, durationMin) {
 Everything in `references/` (deep modules, information hiding, the independence
 test, layers) is just specific tactics against these two causes.
 
+### Pull complexity downwards
+
+When a module already has enough information to make a decision, the module
+should absorb that complexity instead of pushing it onto callers. A slightly
+more complex implementation is usually worth it if it creates a simpler, more
+obvious interface.
+
+Callers should express **intent**, not assemble internal mechanics:
+
+```javascript
+// BAD: every caller must know pagination mechanics, ordering, and limits.
+const offset = (page - 1) * pageSize;
+const users = await db.users.findMany({
+  skip: offset,
+  take: pageSize,
+  orderBy: { createdAt: "desc" },
+});
+
+// GOOD: the repository owns those details.
+const users = await userRepository.list({ page, pageSize });
+```
+
+This applies to validation, retries, formatting, configuration, state
+transitions, error translation, and protocol details. If every caller must
+remember the same "before you call this, do X/Y/Z" ritual, the module leaked a
+decision upward.
+
+```javascript
+// BAD: callers know the valid order state transition.
+if (order.status !== "paid") throw new Error("Only paid orders can be shipped");
+order.status = "shipped";
+await orderRepository.save(order);
+
+// GOOD: the order module owns the rule.
+await order.ship();
+await orderRepository.save(order);
+```
+
+Do not confuse this with hiding fundamental dependencies. Required inputs should
+still be explicit. The point is to hide internal decisions, not to create magic
+or global state.
+
 ### Complexity is incremental — zero tolerance
 
 It never arrives in one catastrophe. It accumulates from tiny increments — one
@@ -170,7 +212,7 @@ decision lives. You are choosing seams that will be expensive to move later, so
 your leverage is highest and your reading is broadest.
 
 > **Hold this question:** *"Where does each piece of knowledge live, and does
-> every boundary I draw hide something real?"*
+> every boundary I draw hide something real without pushing rituals upward?"*
 
 Read, in this order:
 
@@ -186,6 +228,9 @@ Read, in this order:
 5. **`information-hiding.md`** — give each design decision ONE owner; this is how
    the system survives change.
 
+At boundary time, ask: "Can this module make the decision itself?" If yes, pull
+that complexity downward so callers state intent rather than coordinating steps.
+
 You can skim `functions.md` — it's the developer's altitude. But the principle
 (independence test) is the same one you apply to modules.
 
@@ -196,7 +241,7 @@ class you're extending, what you expose vs. keep private. You realize the
 architect's boundaries in code without leaking or conjoining anything.
 
 > **Hold this question:** *"Can each piece be understood on its own — and am I
-> leaking any decision I could have kept secret?"*
+> leaking any decision I could have kept secret or handled below?"*
 
 Read, in this order:
 
@@ -216,6 +261,10 @@ Read, in this order:
 `general-purpose.md` is worth a skim for the *"one method, one caller = smell"*
 rule when you design a helper's signature.
 
+While writing, watch for call sites that repeat setup, validation, retries,
+formatting, or state checks. That repetition is usually a signal that the callee
+should absorb the rule.
+
 ### 🔍 REVIEWER — auditing a change *after* it's written
 
 Your altitude is **the diff**. You are a gate: your job is to catch the small
@@ -231,6 +280,7 @@ precise argument and the fix.
 | If you see in the diff… | It's… | Open |
 |---|---|---|
 | Same value/decision duplicated across files | Change amplification | `information-hiding.md`, `classes.md` |
+| Callers repeat setup/validation/retry/formatting/state-transition rituals | Complexity pushed upward | `information-hiding.md`, `deep-modules.md` |
 | Magic numbers, cryptic names, hidden ordering | Obscurity | `SKILL.md` (Nature of Complexity) |
 | A wrapper whose interface ≈ its body | Shallow module | `deep-modules.md` |
 | Many tiny classes/methods to do one thing | Classitis | `deep-modules.md` |
