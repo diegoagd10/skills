@@ -473,6 +473,40 @@ func TestRunUninstallCleansAllHarnessesIgnoringFlag(t *testing.T) {
 	}
 }
 
+// TestOpenCodeAgentsHaveDefaultModels guards the per-agent default model
+// assignments in the canonical opencode.json (orchestrator + the 10 SDD phases).
+// They are written verbatim into ~/.config/opencode/opencode.json at install.
+func TestOpenCodeAgentsHaveDefaultModels(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
+	raw := readAssetText(t, filepath.Join(repoRoot, "agent-clis", "opencode", "opencode.json"))
+	var cfg struct {
+		Agent map[string]struct {
+			Model string `json:"model"`
+		} `json:"agent"`
+	}
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		t.Fatalf("opencode.json is not valid JSON: %v", err)
+	}
+	want := map[string]string{
+		"gentle-orchestrator": "opencode/gpt-5",
+		"sdd-init":            "minimax/MiniMax-M2.7",
+		"sdd-explore":         "opencode/gpt-5",
+		"sdd-propose":         "opencode/gpt-5",
+		"sdd-spec":            "opencode/gpt-5",
+		"sdd-design":          "opencode/gpt-5",
+		"sdd-tasks":           "opencode/gpt-5",
+		"sdd-apply":           "openai/gpt-5.4-mini",
+		"sdd-verify":          "opencode/gpt-5",
+		"sdd-archive":         "minimax/MiniMax-M2.7",
+		"sdd-onboard":         "opencode/gpt-5",
+	}
+	for agent, model := range want {
+		if got := cfg.Agent[agent].Model; got != model {
+			t.Errorf("agent %q model = %q, want %q", agent, got, model)
+		}
+	}
+}
+
 func TestPromptHarnessesEmptyMeansAll(t *testing.T) {
 	in := strings.NewReader("\n")
 	var out bytes.Buffer

@@ -60,6 +60,11 @@ assert_valid_json  "$OC_JSON" "opencode.json is valid JSON"
 assert_file_not_contains "$OC_JSON" "{{HOME}}" "opencode.json has no unsubstituted {{HOME}}"
 assert_file_contains "$OC_JSON" "$H/.config/opencode/prompts/sdd" "opencode.json references the substituted home path"
 
+# Per-agent default model assignments survive generation.
+assert_file_contains "$OC_JSON" "opencode/gpt-5" "opencode.json assigns gpt-5 to the gpt-5 stages"
+assert_file_contains "$OC_JSON" "minimax/MiniMax-M2.7" "opencode.json assigns minimax to sdd-init/sdd-archive"
+assert_file_contains "$OC_JSON" "openai/gpt-5.4-mini" "opencode.json assigns gpt-5.4-mini to sdd-apply"
+
 # Symlinks point back into the repo.
 assert_symlink_into "$OC_CFG/skills"      "$REPO_DIR" "skills symlink resolves into repo"
 assert_symlink_into "$OC_CFG/AGENTS.md"   "$REPO_DIR" "AGENTS.md (persona) symlink resolves into repo"
