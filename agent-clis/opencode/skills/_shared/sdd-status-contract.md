@@ -20,14 +20,14 @@ Commands that select, continue, apply, verify, or archive an SDD change MUST fir
 - When `blockedReasons` is non-empty, do not proceed to terminal, archive, or apply work. Return or report `blockedReasons` and stop unless `nextRecommended` is `verify`, in which case verification may run only to remediate or refresh evidence for the blockers. When `nextRecommended` is `resolve-blockers`, always report `blockedReasons` and stop.
 - `nextRecommended` is a bounded machine token for routing, not human prose. Route only by `nextRecommended` and dependency states.
 - Human-readable explanation belongs in `blockedReasons`, not `nextRecommended`.
-- If the binary is unavailable, fall back to this prompt contract and the manual status schema below. Manual fallback status MUST stay shape-compatible with native `gentle-ai.sdd-status` JSON even when values are reconstructed manually.
+- If the binary is unavailable, fall back to this prompt contract and the manual status schema below. Manual fallback status MUST stay shape-compatible with native `ai-harness.sdd-status` JSON even when values are reconstructed manually.
 
 ## Status Schema
 
 Return status as markdown with these fields, or as equivalent JSON when the host supports it:
 
 ```yaml
-schemaName: gentle-ai.sdd-status
+schemaName: ai-harness.sdd-status
 schemaVersion: 1
 changeName: <change-name-or-null>
 artifactStore: openspec

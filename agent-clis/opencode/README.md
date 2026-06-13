@@ -1,10 +1,10 @@
 # agent-clis/opencode
 
 Faithful copy of the **OpenCode** SDD (Spec-Driven Development) configuration that
-[`gentle-ai`](https://github.com/Gentleman-Programming/gentle-ai) generates. Staged
-here so we can study/adapt it **without touching the repo's main `skills/`**.
+the internal `ai-harness` CLI installs. Staged here so we can study/adapt it
+**without touching the repo's main `skills/`**.
 
-This mirrors what `gentle-ai sync` writes into `~/.config/opencode/`.
+This mirrors what `ai-harness install` writes into `~/.config/opencode/`.
 
 ## How the pipeline works
 
@@ -32,6 +32,7 @@ phases, and a **review-workload guard** before implementing.
 | `opencode.json` | The whole agent graph: `gentle-orchestrator` (primary) + 17 hidden subagents (10 SDD phases, 3 judgment-day, 4 reviewers). Prompts are `{file:...}` references; only the short judgment/reviewer prompts stay inline. |
 | `AGENTS.md` | Global persona / system prompt applied to all agents. |
 | `sdd-orchestrator.md` | The primary orchestrator prompt, referenced by `gentle-orchestrator` via `{file:{{HOME}}/.config/opencode/sdd-orchestrator.md}`. |
+| `blocks/*.md` | Source blocks that control repeated or generated prompt sections. Tests ensure the final prompt files stay synchronized with these blocks. |
 | `commands/sdd-*.md` | Slash-command entrypoints (`/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/sdd-apply`, `/sdd-verify`, `/sdd-archive`, `/sdd-status`, `/sdd-init`, `/sdd-explore`, `/sdd-onboard`). |
 | `prompts/sdd/*.md` | The prompt each phase subagent loads. Derived from the matching `skills/<phase>/SKILL.md`. |
 | `plugins/*.ts` | OpenCode plugins: `skill-registry.ts` (resolves project skills) and `model-variants.ts` (model profiles). |
@@ -46,12 +47,11 @@ phases, and a **review-workload guard** before implementing.
 "prompt": "{file:{{HOME}}/.config/opencode/prompts/sdd/sdd-init.md}"
 ```
 
-`gentle-ai` substitutes `{{HOME}}` with the real home dir at install time. To run this
+`ai-harness` substitutes `{{HOME}}` with the real home dir at install time. To run this
 copy directly you'd either replace `{{HOME}}` with your home and drop the folder into
 `~/.config/opencode/`, or rewrite the refs to relative `{file:./prompts/sdd/...}`.
 
 ## Source
 
-Assembled from `internal/assets/opencode/` and `internal/assets/skills/` of the
-`gentle-ai` repo, with `opencode.json` / `AGENTS.md` taken from its golden fixtures
-(the exact generated output).
+Assembled from the internal `ai-harness` OpenCode assets, with `opencode.json` /
+`AGENTS.md` taken from its generated fixtures.

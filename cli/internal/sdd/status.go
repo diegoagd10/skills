@@ -16,7 +16,7 @@ import (
 
 // SchemaName and SchemaVersion identify the Status JSON contract.
 const (
-	SchemaName    = "gentle-ai.sdd-status"
+	SchemaName    = "ai-harness.sdd-status"
 	SchemaVersion = 1
 )
 

@@ -270,7 +270,7 @@ When `delivery_strategy` results in chained PRs (either by user choice via `ask-
 
 Cache the chain strategy for the session. Pass it as `chain_strategy` to `sdd-tasks` and `sdd-apply` prompts alongside `delivery_strategy`. Do not ask again unless the user changes scope.
 
-When delivery planning yields chained PRs, treat `chained-pr` (registry skill `gentle-ai-chained-pr`) as a required skill match: resolve it by registry name through this template's existing skill-resolution mechanism (the same one it already uses to pass skills to phases) and ensure the `sdd-tasks` and `sdd-apply` phases load and follow it BEFORE planning or creating any PR. Do not hardcode the skill path; defer resolution to that mechanism.
+When delivery planning yields chained PRs, treat `chained-pr` (registry skill `ai-harness-chained-pr`) as a required skill match: resolve it by registry name through this template's existing skill-resolution mechanism (the same one it already uses to pass skills to phases) and ensure the `sdd-tasks` and `sdd-apply` phases load and follow it BEFORE planning or creating any PR. Do not hardcode the skill path; defer resolution to that mechanism.
 
 ### Dependency Graph
 
@@ -300,8 +300,6 @@ Do this even in Automatic mode. Automatic mode does not override reviewer burnou
 
 When launching `sdd-apply`, always include the resolved `delivery_strategy`, `chain_strategy`, and any chosen PR boundary/exception in the prompt.
 
-<!-- gentle-ai:sdd-model-assignments -->
-
 ## Model Assignments
 
 Read the configured models from `opencode.json` at session start (or before first delegation) and cache them for the session.
@@ -310,8 +308,6 @@ Read the configured models from `opencode.json` at session start (or before firs
 - Treat `agent.sdd-<phase>.model` as authoritative when it is set.
 - If a phase does not have an explicit model, use the default OpenCode runtime model for that agent and continue.
 - For named profiles, apply the same rule to the suffixed agent keys (for example, `sdd-apply-cheap`).
-
-<!-- /gentle-ai:sdd-model-assignments -->
 
 ### Sub-Agent Launch Deduplication (MANDATORY)
 

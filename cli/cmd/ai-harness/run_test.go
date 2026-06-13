@@ -290,3 +290,42 @@ func TestOpenCodeSDDAssetsPreferAIHarnessNativeDispatcher(t *testing.T) {
 		}
 	}
 }
+
+func TestOpenCodeControlledBlocksStaySynchronized(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
+	opencodeRoot := filepath.Join(repoRoot, "agent-clis", "opencode")
+
+	persona := readAssetText(t, filepath.Join(opencodeRoot, "blocks", "persona.md"))
+	agents := readAssetText(t, filepath.Join(opencodeRoot, "AGENTS.md"))
+	if strings.TrimSpace(agents) != strings.TrimSpace(persona) {
+		t.Fatalf("AGENTS.md must match blocks/persona.md")
+	}
+
+	modelAssignments := readAssetText(t, filepath.Join(opencodeRoot, "blocks", "sdd-model-assignments.md"))
+	orchestrator := readAssetText(t, filepath.Join(opencodeRoot, "sdd-orchestrator.md"))
+	if !strings.Contains(orchestrator, strings.TrimSpace(modelAssignments)) {
+		t.Fatalf("sdd-orchestrator.md must include blocks/sdd-model-assignments.md")
+	}
+
+	for _, text := range []struct {
+		name    string
+		content string
+	}{
+		{"AGENTS.md", agents},
+		{"sdd-orchestrator.md", orchestrator},
+	} {
+		if strings.Contains(text.content, "<!-- ai-harness:") || strings.Contains(text.content, "<!-- /ai-harness:") ||
+			strings.Contains(text.content, "<!-- gentle-ai:") || strings.Contains(text.content, "<!-- /gentle-ai:") {
+			t.Fatalf("%s should not use HTML sentinels for controlled blocks", text.name)
+		}
+	}
+}
+
+func readAssetText(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	return string(content)
+}

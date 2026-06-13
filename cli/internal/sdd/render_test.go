@@ -64,8 +64,8 @@ func TestResolveSchemaAndActionContext(t *testing.T) {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 
-	if status.SchemaName != "gentle-ai.sdd-status" || status.SchemaVersion != 1 {
-		t.Fatalf("schema = %s@%d, want gentle-ai.sdd-status@1", status.SchemaName, status.SchemaVersion)
+	if status.SchemaName != "ai-harness.sdd-status" || status.SchemaVersion != 1 {
+		t.Fatalf("schema = %s@%d, want ai-harness.sdd-status@1", status.SchemaName, status.SchemaVersion)
 	}
 	if status.ArtifactStore != "openspec" {
 		t.Fatalf("ArtifactStore = %q, want openspec", status.ArtifactStore)
@@ -121,7 +121,7 @@ func TestRenderMarkdownIncludesFencedJSON(t *testing.T) {
 		"next: apply",
 		"- tasks: 0/1 complete",
 		"```json",
-		`"schemaName": "gentle-ai.sdd-status"`,
+		`"schemaName": "ai-harness.sdd-status"`,
 		"```",
 	} {
 		if !strings.Contains(markdown, want) {
@@ -147,7 +147,7 @@ func TestRenderDispatcherMarkdownIncludesRoutingContext(t *testing.T) {
 		"### Next Phase Instructions: apply",
 		"Read proposal, specs, design, and tasks before editing.",
 		"```json",
-		`"schemaName": "gentle-ai.sdd-status"`,
+		`"schemaName": "ai-harness.sdd-status"`,
 		"```",
 	} {
 		if !strings.Contains(markdown, want) {
