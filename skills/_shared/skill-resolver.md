@@ -18,7 +18,7 @@ Build an in-session **index** of skill names, triggers, scopes, and exact `SKILL
 
 Resolution order:
 1. Use the session cache if present.
-2. Scan the installed skills directory (where your platform symlinks `skills/`, e.g. `~/.config/opencode/skills/` or `~/.claude/skills/`) for `*/SKILL.md` and read each frontmatter (`name`, `description`/triggers, scope).
+2. Scan the installed skills directory (e.g. `~/.config/opencode/skills/` or `~/.claude/skills/`) for `*/SKILL.md` and read each frontmatter (`name`, `description`/triggers, scope).
 3. Cache the resulting index for the rest of the session.
 4. No skills found → proceed without project skills and warn the user.
 

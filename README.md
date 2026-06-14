@@ -1,11 +1,8 @@
 # ai-harness-setup
 
-Personal, version-controlled configuration for the **OpenCode** code-AI harness:
-one source of truth (`AGENTS.md` + a skills directory + SDD prompts), generated
-into the places OpenCode expects.
-
-> **Scope:** today this repo targets **OpenCode** only. Once the OpenCode setup is
-> solid it becomes the reference for other harnesses (Claude Code, Copilot).
+Personal, version-controlled configuration for AI coding harnesses: one source
+of truth (`AGENTS.md` + skills + SDD prompts), copied into the places OpenCode,
+Claude Code, Copilot, and generic `.agents` consumers expect.
 
 ## What's in here
 
@@ -16,24 +13,27 @@ into the places OpenCode expects.
 | `prompts/commands/` | Platform-neutral slash-command entrypoints, the single source of truth. |
 | `skills/` | Reusable skills (SDD apply flow, branch-pr, coding-guidelines, …). |
 | `agent-clis/opencode/` | The OpenCode wiring: agent graph (`opencode.json`), orchestrator prompt, blocks, plugins. |
-| `cli/` | The `ai-harness` Go CLI: SDD dispatcher + installer that generates the OpenCode slash-commands. |
+| `cli/` | The `ai-harness` Go CLI: SDD dispatcher + copy-based harness installer/uninstaller. |
 | `templates/openspec/config.yaml` | Starter OpenSpec project config to copy into new projects. |
 
 ## Install
 
-Build the CLI and generate the OpenCode integration:
+Build the CLI and install the harness artifacts:
 
 ```bash
 git clone git@github.com:diegoagd10/ai-harness-setup.git ~/Projects/ai-harness-setup
 cd ~/Projects/ai-harness-setup/cli
 make install            # put the `ai-harness` binary on your PATH
-ai-harness install      # generate the OpenCode slash-commands into ~/.config/opencode/commands/
+ai-harness install      # copy skills/config and generate OpenCode commands/config
 ```
 
-`ai-harness install` reads the canonical `prompts/commands/*.md` and writes the
-OpenCode-specific command files under `~/.config/opencode/`. Editing the repo
-edits the source those files are generated from — re-run `ai-harness install` to
-regenerate. See `agent-clis/opencode/README.md` for how the agent graph fits
+`ai-harness install` copies the shared skills/config into harness home dirs
+(`~/.agents`, `~/.claude`, `~/.copilot`, and `~/.config/opencode` by default),
+generates OpenCode slash-command files from `prompts/commands/*.md`, writes the
+OpenCode config, and records owned files in
+`~/.config/ai-harness/install-manifest.json`. Editing the repo edits the source
+for those copied/generated files — re-run `ai-harness install` to refresh them.
+See `agent-clis/opencode/README.md` for how the OpenCode agent graph fits
 together.
 
 ## Uninstall
@@ -42,7 +42,8 @@ together.
 ai-harness uninstall
 ```
 
-Removes only the OpenCode command files this repo generated.
+Removes only files listed in the central ai-harness manifest, then removes the
+manifest. It does not need the source repo to be available.
 
 ## Using the OpenSpec template in a new project
 

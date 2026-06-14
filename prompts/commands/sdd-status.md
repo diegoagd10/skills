@@ -8,7 +8,7 @@ You are the `{{ORCHESTRATOR_AGENT}}`. This command is read-only. Do not launch S
 
 HARD GATE:
 
-SDD Session Preflight must already be complete for this session. It must include execution mode, artifact store, chained PR strategy, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not inspect status in the same turn.
+SDD Session Preflight must already be complete for this session. It must include execution mode, the canonical hybrid artifact store, single-PR delivery, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not inspect status in the same turn.
 
 CONTEXT:
 

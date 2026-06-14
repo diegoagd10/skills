@@ -94,13 +94,11 @@ Example:
 SDD must protect reviewer cognitive load, not only generate tasks.
 
 - The default PR review budget is **400 changed lines** (`additions + deletions`).
-- The orchestrator MUST cache a delivery strategy at session start: `ask-on-risk` (default), `auto-chain`, `single-pr`, or `exception-ok`.
-- The orchestrator MUST pass `delivery_strategy` to `sdd-tasks` and the resolved decision to `sdd-apply`.
+- The orchestrator MUST default the SDD delivery strategy to `single-pr` and pass that canonical value to `sdd-tasks` and `sdd-apply`.
 - `sdd-tasks` MUST forecast whether the planned work may exceed that budget.
-- The forecast MUST include exact plain-text guard lines: `Decision needed before apply: Yes|No`, `Chained PRs recommended: Yes|No`, and `400-line budget risk: Low|Medium|High`.
-- If the forecast is high, `sdd-tasks` MUST recommend chained or stacked PRs using deliverable work units.
-- `sdd-apply` MUST NOT start oversized work unless the delivery strategy resolves to chained/stacked PR slices or explicitly accepted `size:exception`.
-- Each chained PR slice must have a clear start, clear finish, autonomous scope, verification, and reasonable rollback.
-- In a Feature Branch Chain, PR #1 targets the feature/tracker branch and later child PRs target the immediate previous PR branch; if GitHub shows previous slices in a child diff, retarget/rebase until the diff is clean.
+- The forecast MUST include exact plain-text guard lines: `Decision needed before apply: Yes|No`, `400-line budget risk: Low|Medium|High`, and `Maintainer-approved size exception: Yes|No`.
+- If the forecast is high, `sdd-tasks` MUST report the risk and keep the delivery model single-PR.
+- `sdd-apply` MUST NOT start oversized work unless the run explicitly carries maintainer-approved `size:exception`.
+- Any PR boundary language must stay single-PR focused; do not recommend chained or stacked PR slices.
 
 This guard exists to reduce reviewer burnout and keep implementation delivery safe. Do not treat it as optional process noise.

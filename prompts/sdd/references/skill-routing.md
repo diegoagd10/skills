@@ -49,7 +49,7 @@ Que cada fase SDD tenga una referencia explícita a las skills que debe cargar, 
 
 ### sdd-tasks ❌ — GAPS
 - **Problema**: No menciona skills.
-- **Rol correcto**: ARCHITECT (estimación de workload, decisión de chained PRs) + DEVELOPER (estructura de tareas)
+- **Rol correcto**: ARCHITECT (estimación de workload, decisión de single-PR y size-exception) + DEVELOPER (estructura de tareas)
 - **coding-guidelines aplica en**:
   - `functions.md` — cada tarea ¿es una función independently understandable?
   - `deep-modules.md` — las tareas agrupan por depth o solo por líneas de código

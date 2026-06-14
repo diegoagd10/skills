@@ -17,8 +17,8 @@ cli/
 ├── internal/sdd/        ← THE DEPENDENCY (the core library; private to this module)
 │   └── ...              · all the state-machine logic. Pure, no CLI concerns.
 │
-└── internal/install/    ← THE DEPENDENCY (harness symlink installer; private)
-    └── install.go       · Install/Uninstall the skills + AGENTS.md symlinks.
+└── internal/install/    ← THE DEPENDENCY (harness artifact installer; private)
+    └── install.go       · Install/Uninstall copied skills, config, and manifest ownership.
 ```
 
 Rule of thumb for any Go repo:
@@ -64,26 +64,28 @@ Tests live next to the code they test (Go requirement for white-box tests):
 ```
 ai-harness sdd-status   [--cwd <path>] [--json] [--instructions] [change]
 ai-harness sdd-continue [--cwd <path>] [--json] [change]
-ai-harness install      [--repo <path>]
-ai-harness uninstall    [--repo <path>]
+ai-harness install      [--repo <path>] [--harness claude,copilot,opencode]
+ai-harness uninstall
 ```
 
 - `sdd-status`   — report the SDD phase state for a change.
 - `sdd-continue` — report the dispatcher routing (always includes phase instructions).
 - A single positional argument selects the change; with exactly one active change
   it is inferred.
-- `install`      — generate the OpenCode slash-commands from `prompts/commands/`
-  into `~/.config/opencode/commands/`. The repo root is the cwd unless `--repo`
-  is given.
-- `uninstall`    — remove only the OpenCode command files this repo generated.
+- `install`      — copy shared skills/config into harness home dirs, generate
+  OpenCode slash-commands from `prompts/commands/`, write OpenCode config, and
+  record owned files in `~/.config/ai-harness/install-manifest.json`. The repo
+  root is the cwd unless `--repo` is given.
+- `uninstall`    — remove only manifest-owned files. It reads
+  `~/.config/ai-harness/install-manifest.json` and does not require a source repo.
 
-> **Scope:** the project currently targets **OpenCode** only. `install` still
-> creates dormant home symlinks for other harnesses (`~/.claude`, `~/.agents`,
-> `~/.copilot`) via `internal/install`; that path is legacy and undocumented
-> pending the OpenCode-first refocus.
+> `install` copies the shared skills/config into `~/.claude`, `~/.agents`,
+> `~/.copilot`, and `~/.config/opencode/`, with ownership tracked in
+> `~/.config/ai-harness/`.
 
 > `make install` installs the **binary** onto your PATH (the bootstrap).
-> `ai-harness install` installs the **harness** (generates the OpenCode commands).
+> `ai-harness install` installs the **harness** (copies skills/config and
+> generates OpenCode commands/config).
 
 ## Build & test
 

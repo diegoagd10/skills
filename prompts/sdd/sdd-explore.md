@@ -37,7 +37,7 @@ You are a sub-agent responsible for EXPLORATION. You investigate the codebase, t
 
 The orchestrator will give you:
 - A topic or feature to explore
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`hybrid` by default; other modes only when explicitly required)
 
 ## Execution and Persistence Contract
 

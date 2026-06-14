@@ -1,41 +1,41 @@
 package install
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// fakeRepo builds a minimal valid repo (skills/ dir, AGENTS.md, and the
-// prompts/sdd dir the OpenCode links point at) under a temp dir and returns its
-// path.
+// fakeRepo builds a minimal valid repo with real files for every copied tree.
 func fakeRepo(t *testing.T) string {
 	t.Helper()
 	repo := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(repo, "skills"), 0o755); err != nil {
-		t.Fatalf("mkdir skills: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(repo, "prompts", "sdd"), 0o755); err != nil {
-		t.Fatalf("mkdir prompts/sdd: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(repo, "agent-clis", "opencode", "plugins"), 0o755); err != nil {
-		t.Fatalf("mkdir agent-clis/opencode/plugins: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "AGENTS.md"), []byte("# Agents\n"), 0o644); err != nil {
-		t.Fatalf("write AGENTS.md: %v", err)
-	}
+	mustMkdirAll(t, filepath.Join(repo, "skills", "example"))
+	mustMkdirAll(t, filepath.Join(repo, "prompts", "sdd"))
+	mustMkdirAll(t, filepath.Join(repo, "agent-clis", "opencode", "plugins"))
+	mustWriteFile(t, filepath.Join(repo, "AGENTS.md"), []byte("# Agents\n"))
+	mustWriteFile(t, filepath.Join(repo, "skills", "example", "SKILL.md"), []byte("# Example skill\n"))
+	mustWriteFile(t, filepath.Join(repo, "prompts", "sdd", "sdd-orchestrator.md"), []byte("# Orchestrator\n"))
+	mustWriteFile(t, filepath.Join(repo, "agent-clis", "opencode", "plugins", "model-variants.ts"), []byte("export {};\n"))
 	return repo
 }
 
-// fixedTimestamp returns a deterministic timestamp source for backup names.
-func fixedTimestamp() func() string {
-	return func() string { return "20240101000000" }
+func mustMkdirAll(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", path, err)
+	}
 }
 
-// cfgFor builds a Config rooted at repo with all home subdirs under home,
-// including the OpenCode config dir whose skills/AGENTS.md/prompts links the
-// install flow now owns.
+func mustWriteFile(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
 func cfgFor(repo, home string) Config {
 	return Config{
 		RepoDir:     repo,
@@ -43,11 +43,9 @@ func cfgFor(repo, home string) Config {
 		AgentsDir:   filepath.Join(home, ".agents"),
 		CopilotDir:  filepath.Join(home, ".copilot"),
 		OpencodeDir: filepath.Join(home, ".config", "opencode"),
-		Timestamp:   fixedTimestamp(),
 	}
 }
 
-// findOutcome returns the outcome whose Dest matches, or fails the test.
 func findOutcome(t *testing.T, r Report, dest string) Outcome {
 	t.Helper()
 	for _, o := range r {
@@ -59,367 +57,419 @@ func findOutcome(t *testing.T, r Report, dest string) Outcome {
 	return Outcome{}
 }
 
-func TestInstallLinksAllTargets(t *testing.T) {
+func testManifestPath(home string) string {
+	return filepath.Join(home, ".config", "ai-harness", "install-manifest.json")
+}
+
+func readTestManifest(t *testing.T, path string) Manifest {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read manifest %s: %v", path, err)
+	}
+	var manifest Manifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("decode manifest %s: %v", path, err)
+	}
+	return manifest
+}
+
+func assertCopiedFile(t *testing.T, dest, want string) {
+	t.Helper()
+	info, err := os.Lstat(dest)
+	if err != nil {
+		t.Fatalf("lstat %s: %v", dest, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatalf("expected %s to be a copied file, not a symlink", dest)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read %s: %v", dest, err)
+	}
+	if string(got) != want {
+		t.Fatalf("%s content = %q, want %q", dest, got, want)
+	}
+}
+
+func TestInstallCopiesAllTargetsAndWritesManifest(t *testing.T) {
 	repo := fakeRepo(t)
 	home := t.TempDir()
 	cfg := cfgFor(repo, home)
 
-	report, err := Install(cfg)
+	report, entries, err := Install(cfg)
 	if err != nil {
 		t.Fatalf("Install returned error: %v", err)
 	}
+	if err := WriteManifest(cfg, entries); err != nil {
+		t.Fatalf("WriteManifest returned error: %v", err)
+	}
+	if len(report) != 10 {
+		t.Fatalf("expected 10 outcomes, got %d: %+v", len(report), report)
+	}
+	if len(entries) != 10 {
+		t.Fatalf("expected 10 manifest entries, got %d: %+v", len(entries), entries)
+	}
 
-	cases := []struct {
+	sources := map[string]string{
+		filepath.Join(repo, "skills", "example", "SKILL.md"):                          "# Example skill\n",
+		filepath.Join(repo, "AGENTS.md"):                                              "# Agents\n",
+		filepath.Join(repo, "prompts", "sdd", "sdd-orchestrator.md"):                  "# Orchestrator\n",
+		filepath.Join(repo, "agent-clis", "opencode", "plugins", "model-variants.ts"): "export {};\n",
+	}
+
+	fileChecks := []struct {
 		dest string
 		src  string
 	}{
-		{filepath.Join(home, ".claude", "skills"), filepath.Join(repo, "skills")},
-		{filepath.Join(home, ".claude", "CLAUDE.md"), filepath.Join(repo, "AGENTS.md")},
-		{filepath.Join(home, ".agents", "skills"), filepath.Join(repo, "skills")},
+		{filepath.Join(home, ".agents", "skills", "example", "SKILL.md"), filepath.Join(repo, "skills", "example", "SKILL.md")},
 		{filepath.Join(home, ".agents", "AGENTS.md"), filepath.Join(repo, "AGENTS.md")},
-		{filepath.Join(home, ".copilot", "skills"), filepath.Join(repo, "skills")},
+		{filepath.Join(home, ".claude", "skills", "example", "SKILL.md"), filepath.Join(repo, "skills", "example", "SKILL.md")},
+		{filepath.Join(home, ".claude", "CLAUDE.md"), filepath.Join(repo, "AGENTS.md")},
+		{filepath.Join(home, ".copilot", "skills", "example", "SKILL.md"), filepath.Join(repo, "skills", "example", "SKILL.md")},
 		{filepath.Join(home, ".copilot", "copilot-instructions.md"), filepath.Join(repo, "AGENTS.md")},
-		{filepath.Join(home, ".config", "opencode", "skills"), filepath.Join(repo, "skills")},
+		{filepath.Join(home, ".config", "opencode", "skills", "example", "SKILL.md"), filepath.Join(repo, "skills", "example", "SKILL.md")},
 		{filepath.Join(home, ".config", "opencode", "AGENTS.md"), filepath.Join(repo, "AGENTS.md")},
-		{filepath.Join(home, ".config", "opencode", "prompts", "sdd"), filepath.Join(repo, "prompts", "sdd")},
-		{filepath.Join(home, ".config", "opencode", "plugins"), filepath.Join(repo, "agent-clis", "opencode", "plugins")},
+		{filepath.Join(home, ".config", "opencode", "prompts", "sdd", "sdd-orchestrator.md"), filepath.Join(repo, "prompts", "sdd", "sdd-orchestrator.md")},
+		{filepath.Join(home, ".config", "opencode", "plugins", "model-variants.ts"), filepath.Join(repo, "agent-clis", "opencode", "plugins", "model-variants.ts")},
 	}
-
-	if len(report) != len(cases) {
-		t.Fatalf("expected %d outcomes, got %d: %+v", len(cases), len(report), report)
+	for _, c := range fileChecks {
+		assertCopiedFile(t, c.dest, sources[c.src])
 	}
-
-	for _, c := range cases {
-		got, err := os.Readlink(c.dest)
-		if err != nil {
-			t.Fatalf("expected symlink at %s: %v", c.dest, err)
-		}
-		if got != c.src {
-			t.Fatalf("symlink %s points to %q, want %q", c.dest, got, c.src)
-		}
-		o := findOutcome(t, report, c.dest)
-		if o.Action != ActionLinked {
-			t.Fatalf("dest %s: expected action %q, got %q", c.dest, ActionLinked, o.Action)
-		}
-	}
-}
-
-func TestInstallRelinksExistingSymlink(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	dest := filepath.Join(home, ".claude", "skills")
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	// Pre-existing symlink pointing at a stale target.
-	stale := filepath.Join(home, "stale-target")
-	if err := os.Symlink(stale, dest); err != nil {
-		t.Fatalf("pre-symlink: %v", err)
-	}
-
-	report, err := Install(cfg)
-	if err != nil {
-		t.Fatalf("Install error: %v", err)
-	}
-
-	got, err := os.Readlink(dest)
-	if err != nil {
-		t.Fatalf("readlink: %v", err)
-	}
-	want := filepath.Join(repo, "skills")
-	if got != want {
-		t.Fatalf("relink target = %q, want %q", got, want)
-	}
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionRelinked {
-		t.Fatalf("expected action %q, got %q", ActionRelinked, o.Action)
-	}
-}
-
-func TestInstallBacksUpRealFileBeforeLinking(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	dest := filepath.Join(home, ".claude", "CLAUDE.md")
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	original := []byte("my own claude instructions\n")
-	if err := os.WriteFile(dest, original, 0o644); err != nil {
-		t.Fatalf("write real file: %v", err)
-	}
-
-	report, err := Install(cfg)
-	if err != nil {
-		t.Fatalf("Install error: %v", err)
-	}
-
-	// dest is now a symlink to repo/AGENTS.md
-	got, err := os.Readlink(dest)
-	if err != nil {
-		t.Fatalf("expected symlink at dest after backup: %v", err)
-	}
-	wantSrc := filepath.Join(repo, "AGENTS.md")
-	if got != wantSrc {
-		t.Fatalf("symlink target = %q, want %q", got, wantSrc)
-	}
-
-	// The backup file exists at the deterministic name and holds the original bytes.
-	backup := dest + ".bak.20240101000000"
-	data, err := os.ReadFile(backup)
-	if err != nil {
-		t.Fatalf("expected backup at %s: %v", backup, err)
-	}
-	if string(data) != string(original) {
-		t.Fatalf("backup content = %q, want %q", data, original)
-	}
-
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionBackedUp {
-		t.Fatalf("expected action %q, got %q", ActionBackedUp, o.Action)
-	}
-	if o.Backup != backup {
-		t.Fatalf("outcome backup = %q, want %q", o.Backup, backup)
-	}
-}
-
-func TestInstallMissingSourceIsError(t *testing.T) {
-	repo := t.TempDir() // no skills/, no AGENTS.md
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	report, err := Install(cfg)
-	if err == nil {
-		t.Fatalf("expected error when sources are missing")
-	}
-	// Outcomes for the missing sources should be reported as failed.
-	dest := filepath.Join(home, ".claude", "skills")
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionSourceMissing {
-		t.Fatalf("expected action %q, got %q", ActionSourceMissing, o.Action)
-	}
-}
-
-func TestInstallIsIdempotent(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	if _, err := Install(cfg); err != nil {
-		t.Fatalf("first install: %v", err)
-	}
-	report, err := Install(cfg)
-	if err != nil {
-		t.Fatalf("second install: %v", err)
-	}
-	// Second run sees symlinks -> all relinked, no backups created.
-	for _, o := range report {
-		if o.Action != ActionRelinked {
-			t.Fatalf("second install dest %s: expected %q, got %q", o.Dest, ActionRelinked, o.Action)
-		}
-	}
-	// No stray .bak files were created.
-	entries, _ := filepath.Glob(filepath.Join(home, ".claude", "*.bak.*"))
-	if len(entries) != 0 {
-		t.Fatalf("idempotent run created backups: %v", entries)
-	}
-}
-
-func TestUninstallRemovesOnlyRepoPointingLinks(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	if _, err := Install(cfg); err != nil {
-		t.Fatalf("install: %v", err)
-	}
-
-	report, err := Uninstall(cfg)
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
-	}
-
-	dest := filepath.Join(home, ".claude", "skills")
-	if _, err := os.Lstat(dest); !os.IsNotExist(err) {
-		t.Fatalf("expected %s removed, lstat err = %v", dest, err)
-	}
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionRemoved {
-		t.Fatalf("expected action %q, got %q", ActionRemoved, o.Action)
-	}
-}
-
-func TestInstallLinksOpencodePromptsSkillsAndPersona(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	report, err := Install(cfg)
-	if err != nil {
-		t.Fatalf("Install error: %v", err)
-	}
-
-	cases := []struct {
-		dest string
-		src  string
-	}{
-		{filepath.Join(home, ".config", "opencode", "skills"), filepath.Join(repo, "skills")},
-		{filepath.Join(home, ".config", "opencode", "AGENTS.md"), filepath.Join(repo, "AGENTS.md")},
-		{filepath.Join(home, ".config", "opencode", "prompts", "sdd"), filepath.Join(repo, "prompts", "sdd")},
-		{filepath.Join(home, ".config", "opencode", "plugins"), filepath.Join(repo, "agent-clis", "opencode", "plugins")},
-	}
-	for _, c := range cases {
-		got, err := os.Readlink(c.dest)
-		if err != nil {
-			t.Fatalf("expected symlink at %s: %v", c.dest, err)
-		}
-		if got != c.src {
-			t.Fatalf("symlink %s points to %q, want %q", c.dest, got, c.src)
-		}
-		o := findOutcome(t, report, c.dest)
-		if o.Action != ActionLinked {
-			t.Fatalf("dest %s: expected action %q, got %q", c.dest, ActionLinked, o.Action)
-		}
-	}
-}
-
-func TestUninstallRemovesOpencodeRepoPointingLinks(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	if _, err := Install(cfg); err != nil {
-		t.Fatalf("install: %v", err)
-	}
-
-	report, err := Uninstall(cfg)
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
-	}
-
 	for _, dest := range []string{
+		filepath.Join(home, ".agents", "skills"),
+		filepath.Join(home, ".agents", "AGENTS.md"),
+		filepath.Join(home, ".claude", "skills"),
+		filepath.Join(home, ".claude", "CLAUDE.md"),
+		filepath.Join(home, ".copilot", "skills"),
+		filepath.Join(home, ".copilot", "copilot-instructions.md"),
 		filepath.Join(home, ".config", "opencode", "skills"),
 		filepath.Join(home, ".config", "opencode", "AGENTS.md"),
 		filepath.Join(home, ".config", "opencode", "prompts", "sdd"),
 		filepath.Join(home, ".config", "opencode", "plugins"),
 	} {
-		if _, err := os.Lstat(dest); !os.IsNotExist(err) {
-			t.Fatalf("expected %s removed, lstat err = %v", dest, err)
-		}
 		o := findOutcome(t, report, dest)
-		if o.Action != ActionRemoved {
-			t.Fatalf("dest %s: expected action %q, got %q", dest, ActionRemoved, o.Action)
+		if o.Action != ActionCopied {
+			t.Fatalf("dest %s: expected action %q, got %q", dest, ActionCopied, o.Action)
+		}
+	}
+
+	manifest := readTestManifest(t, testManifestPath(home))
+	if manifest.Version != 1 {
+		t.Fatalf("manifest version = %d, want 1", manifest.Version)
+	}
+	if len(manifest.Installed) != 10 {
+		t.Fatalf("manifest installed = %d, want 10: %+v", len(manifest.Installed), manifest.Installed)
+	}
+	if manifest.Installed[0].Kind != "file" {
+		t.Fatalf("manifest entry kind = %q, want file", manifest.Installed[0].Kind)
+	}
+}
+
+func TestInstallOverwritesExistingDestinationWithoutBackup(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+
+	dest := filepath.Join(home, ".claude", "CLAUDE.md")
+	mustMkdirAll(t, filepath.Dir(dest))
+	mustWriteFile(t, dest, []byte("old\n"))
+
+	report, _, err := Install(cfg)
+	if err != nil {
+		t.Fatalf("Install returned error: %v", err)
+	}
+	o := findOutcome(t, report, dest)
+	if o.Action != ActionOverwritten {
+		t.Fatalf("expected action %q, got %q", ActionOverwritten, o.Action)
+	}
+	assertCopiedFile(t, dest, "# Agents\n")
+	if matches, _ := filepath.Glob(dest + ".bak.*"); len(matches) != 0 {
+		t.Fatalf("unexpected backup files: %v", matches)
+	}
+}
+
+func TestInstallMissingSourceIsError(t *testing.T) {
+	repo := t.TempDir()
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+
+	report, entries, err := Install(cfg)
+	if err == nil {
+		t.Fatalf("expected error when sources are missing")
+	}
+	if len(report) == 0 || len(entries) != 0 {
+		t.Fatalf("expected no owned entries on missing source, got report=%+v entries=%+v", report, entries)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".claude", "skills")); !os.IsNotExist(err) {
+		t.Fatalf("expected no destination to be created, stat err = %v", err)
+	}
+}
+
+func TestInstallDirectoryFailureRollsBackPartialCopies(t *testing.T) {
+	src := t.TempDir()
+	dest := filepath.Join(t.TempDir(), "skills")
+	mustWriteFile(t, filepath.Join(src, "a-copied-before-failure.txt"), []byte("partial\n"))
+	if err := os.Symlink(filepath.Join(src, "missing-target"), filepath.Join(src, "broken-link")); err != nil {
+		t.Fatalf("create broken symlink: %v", err)
+	}
+
+	_, entries, err := installOne(link{src: src, dest: dest})
+	if err == nil {
+		t.Fatalf("expected installOne to fail on broken symlink")
+	}
+	if len(entries) != 0 {
+		t.Fatalf("failed mapping must not return manifest entries, got %+v", entries)
+	}
+	if _, statErr := os.Stat(filepath.Join(dest, "a-copied-before-failure.txt")); !os.IsNotExist(statErr) {
+		t.Fatalf("partial copied file must be rolled back, stat err = %v", statErr)
+	}
+}
+
+func TestInstallDirectoryPreservesUnmanifestedUserFiles(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	custom := filepath.Join(cfg.OpencodeDir, "skills", "custom", "SKILL.md")
+	mustMkdirAll(t, filepath.Dir(custom))
+	mustWriteFile(t, custom, []byte("# Custom\n"))
+
+	_, entries, err := Install(cfg)
+	if err != nil {
+		t.Fatalf("Install returned error: %v", err)
+	}
+	if got, readErr := os.ReadFile(custom); readErr != nil || string(got) != "# Custom\n" {
+		t.Fatalf("custom file must survive install, got %q err=%v", got, readErr)
+	}
+	for _, entry := range entries {
+		if entry.Dest == custom {
+			t.Fatalf("custom file must not become manifest-owned: %+v", entries)
+		}
+	}
+
+	_, entries, err = Install(cfg)
+	if err != nil {
+		t.Fatalf("reinstall returned error: %v", err)
+	}
+	if got, readErr := os.ReadFile(custom); readErr != nil || string(got) != "# Custom\n" {
+		t.Fatalf("custom file must survive reinstall, got %q err=%v", got, readErr)
+	}
+	for _, entry := range entries {
+		if entry.Dest == custom {
+			t.Fatalf("custom file must not become manifest-owned after reinstall: %+v", entries)
 		}
 	}
 }
 
-func TestUninstallSkipsForeignSymlink(t *testing.T) {
+func TestUninstallRemovesManifestListedFilesAndKeepsUnlistedFiles(t *testing.T) {
 	repo := fakeRepo(t)
 	home := t.TempDir()
 	cfg := cfgFor(repo, home)
 
-	dest := filepath.Join(home, ".claude", "skills")
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	// Symlink points OUTSIDE the repo.
-	foreign := filepath.Join(home, "somewhere-else")
-	if err := os.Symlink(foreign, dest); err != nil {
-		t.Fatalf("symlink: %v", err)
-	}
-
-	report, err := Uninstall(cfg)
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
-	}
-
-	// Still present (not removed).
-	got, err := os.Readlink(dest)
-	if err != nil {
-		t.Fatalf("foreign link should remain: %v", err)
-	}
-	if got != foreign {
-		t.Fatalf("foreign link mutated: %q", got)
-	}
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionSkippedForeign {
-		t.Fatalf("expected action %q, got %q", ActionSkippedForeign, o.Action)
-	}
-}
-
-func TestUninstallSkipsRealFile(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	dest := filepath.Join(home, ".claude", "CLAUDE.md")
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(dest, []byte("real\n"), 0o644); err != nil {
-		t.Fatalf("write: %v", err)
-	}
-
-	report, err := Uninstall(cfg)
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
-	}
-
-	if _, err := os.Stat(dest); err != nil {
-		t.Fatalf("real file should remain: %v", err)
-	}
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionSkippedRealFile {
-		t.Fatalf("expected action %q, got %q", ActionSkippedRealFile, o.Action)
-	}
-}
-
-func TestUninstallReportsAbsent(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	report, err := Uninstall(cfg)
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
-	}
-	dest := filepath.Join(home, ".copilot", "copilot-instructions.md")
-	o := findOutcome(t, report, dest)
-	if o.Action != ActionAbsent {
-		t.Fatalf("expected action %q, got %q", ActionAbsent, o.Action)
-	}
-}
-
-func TestUninstallNeverTouchesBackups(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-
-	// Create a real file so install backs it up, then re-install relinks.
-	dest := filepath.Join(home, ".claude", "CLAUDE.md")
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(dest, []byte("orig\n"), 0o644); err != nil {
-		t.Fatalf("write: %v", err)
-	}
-	if _, err := Install(cfg); err != nil {
+	if _, entries, err := Install(cfg); err != nil {
 		t.Fatalf("install: %v", err)
+	} else if err := WriteManifest(cfg, entries); err != nil {
+		t.Fatalf("write manifest: %v", err)
 	}
-	backup := dest + ".bak.20240101000000"
 
-	if _, err := Uninstall(cfg); err != nil {
+	installed := filepath.Join(home, ".config", "opencode", "AGENTS.md")
+	if err := os.WriteFile(installed, []byte("edited\n"), 0o644); err != nil {
+		t.Fatalf("edit installed file: %v", err)
+	}
+	unlisted := filepath.Join(home, ".config", "opencode", "custom.txt")
+	mustWriteFile(t, unlisted, []byte("keep me\n"))
+
+	report, err := Uninstall(cfg)
+	if err != nil {
 		t.Fatalf("uninstall: %v", err)
 	}
-	if _, err := os.Stat(backup); err != nil {
-		t.Fatalf("backup must survive uninstall: %v", err)
+	o := findOutcome(t, report, installed)
+	if o.Action != ActionRemoved {
+		t.Fatalf("expected removed action for edited file, got %q", o.Action)
+	}
+	if _, err := os.Stat(installed); !os.IsNotExist(err) {
+		t.Fatalf("installed file should be removed, stat err = %v", err)
+	}
+	if got, err := os.ReadFile(unlisted); err != nil {
+		t.Fatalf("unlisted file should remain, read err = %v", err)
+	} else if string(got) != "keep me\n" {
+		t.Fatalf("unlisted file content changed: %q", got)
+	}
+	if _, err := os.Stat(testManifestPath(home)); !os.IsNotExist(err) {
+		t.Fatalf("manifest should be removed, stat err = %v", err)
 	}
 }
 
-// destsOf returns the set of destination paths a Config's mappings would link.
+func TestUninstallNoopWithoutManifest(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+
+	if err := os.MkdirAll(filepath.Join(home, ".config", "opencode"), 0o755); err != nil {
+		t.Fatalf("mkdir custom dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".config", "opencode", "custom.txt"), []byte("keep\n"), 0o644); err != nil {
+		t.Fatalf("seed custom file: %v", err)
+	}
+	report, err := Uninstall(cfg)
+	if err != nil {
+		t.Fatalf("uninstall without manifest: %v", err)
+	}
+	if report != nil && len(report) != 0 {
+		t.Fatalf("expected no report entries without manifest, got %+v", report)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".config", "opencode", "custom.txt")); err != nil {
+		t.Fatalf("custom file should remain: %v", err)
+	}
+}
+
+func TestWriteManifestMergesExistingOwnedArtifacts(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+
+	_, allEntries, err := Install(cfg)
+	if err != nil {
+		t.Fatalf("install all: %v", err)
+	}
+	if err := WriteManifest(cfg, allEntries); err != nil {
+		t.Fatalf("write initial manifest: %v", err)
+	}
+
+	narrowCfg := cfg
+	narrowCfg.Harnesses = []Harness{HarnessClaude}
+	_, narrowEntries, err := Install(narrowCfg)
+	if err != nil {
+		t.Fatalf("install narrower selection: %v", err)
+	}
+	if err := WriteManifest(narrowCfg, narrowEntries); err != nil {
+		t.Fatalf("write narrower manifest: %v", err)
+	}
+
+	manifest := readTestManifest(t, testManifestPath(home))
+	opencodePlugin := filepath.Join(home, ".config", "opencode", "plugins", "model-variants.ts")
+	found := false
+	for _, entry := range manifest.Installed {
+		if entry.Dest == opencodePlugin {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("narrow reinstall must preserve previously owned opencode artifact %s in manifest: %+v", opencodePlugin, manifest.Installed)
+	}
+}
+
+func TestUninstallRejectsManifestEntryOutsideManagedRoots(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	outside := filepath.Join(home, "outside.txt")
+	mustWriteFile(t, outside, []byte("keep\n"))
+
+	if err := WriteManifest(cfg, []ManifestEntry{{Dest: outside, Kind: "file"}}); err != nil {
+		t.Fatalf("write unsafe manifest: %v", err)
+	}
+	_, err := Uninstall(cfg)
+	if err == nil {
+		t.Fatalf("expected unsafe manifest entry to be rejected")
+	}
+	if got, readErr := os.ReadFile(outside); readErr != nil || string(got) != "keep\n" {
+		t.Fatalf("outside file must remain untouched, got %q err=%v", got, readErr)
+	}
+}
+
+func TestUninstallRejectsUnsafeManifestAtomically(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	safe := filepath.Join(cfg.OpencodeDir, "AGENTS.md")
+	unsafe := filepath.Join(home, "outside.txt")
+	mustMkdirAll(t, filepath.Dir(safe))
+	mustWriteFile(t, safe, []byte("keep safe\n"))
+	mustWriteFile(t, unsafe, []byte("keep outside\n"))
+
+	if err := WriteManifest(cfg, []ManifestEntry{
+		{Dest: safe, Kind: "file"},
+		{Dest: unsafe, Kind: "file"},
+	}); err != nil {
+		t.Fatalf("write mixed manifest: %v", err)
+	}
+
+	_, err := Uninstall(cfg)
+	if err == nil {
+		t.Fatalf("expected unsafe manifest entry to be rejected")
+	}
+	if got, readErr := os.ReadFile(safe); readErr != nil || string(got) != "keep safe\n" {
+		t.Fatalf("safe file must not be removed before later unsafe entry is rejected, got %q err=%v", got, readErr)
+	}
+	if got, readErr := os.ReadFile(unsafe); readErr != nil || string(got) != "keep outside\n" {
+		t.Fatalf("outside file must remain untouched, got %q err=%v", got, readErr)
+	}
+}
+
+func TestUninstallRejectsKindFilePointingAtDirectory(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	dir := filepath.Join(cfg.OpencodeDir, "skills")
+	child := filepath.Join(dir, "custom.txt")
+	mustMkdirAll(t, dir)
+	mustWriteFile(t, child, []byte("keep\n"))
+
+	if err := WriteManifest(cfg, []ManifestEntry{{Dest: dir, Kind: "file"}}); err != nil {
+		t.Fatalf("write directory-as-file manifest: %v", err)
+	}
+	_, err := Uninstall(cfg)
+	if err == nil {
+		t.Fatalf("expected kind:file directory target to be rejected")
+	}
+	if got, readErr := os.ReadFile(child); readErr != nil || string(got) != "keep\n" {
+		t.Fatalf("directory contents must remain untouched, got %q err=%v", got, readErr)
+	}
+}
+
+func TestUninstallRejectsManifestEntryWithPathTraversalOutsideManagedRoots(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	outside := filepath.Join(home, "escaped.txt")
+	mustWriteFile(t, outside, []byte("keep\n"))
+	unsafeDest := filepath.Join(cfg.OpencodeDir, "..", "..", "escaped.txt")
+
+	if err := WriteManifest(cfg, []ManifestEntry{{Dest: unsafeDest, Kind: "file"}}); err != nil {
+		t.Fatalf("write traversal manifest: %v", err)
+	}
+	_, err := Uninstall(cfg)
+	if err == nil {
+		t.Fatalf("expected traversal manifest entry to be rejected")
+	}
+	if got, readErr := os.ReadFile(outside); readErr != nil || string(got) != "keep\n" {
+		t.Fatalf("escaped file must remain untouched, got %q err=%v", got, readErr)
+	}
+}
+
+func TestUninstallRejectsDirectoryKindManifestEntry(t *testing.T) {
+	repo := fakeRepo(t)
+	home := t.TempDir()
+	cfg := cfgFor(repo, home)
+	dir := filepath.Join(cfg.OpencodeDir, "skills")
+	mustMkdirAll(t, dir)
+	mustWriteFile(t, filepath.Join(dir, "custom.txt"), []byte("keep\n"))
+
+	if err := WriteManifest(cfg, []ManifestEntry{{Dest: dir, Kind: "directory"}}); err != nil {
+		t.Fatalf("write directory manifest: %v", err)
+	}
+	_, err := Uninstall(cfg)
+	if err == nil {
+		t.Fatalf("expected directory manifest entry to be rejected")
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "custom.txt")); statErr != nil {
+		t.Fatalf("directory contents must remain untouched: %v", statErr)
+	}
+}
+
+// destsOf returns the set of destination paths a Config's mappings would copy.
 func destsOf(c Config) map[string]bool {
 	set := make(map[string]bool)
 	for _, m := range c.mappings() {
@@ -428,10 +478,10 @@ func destsOf(c Config) map[string]bool {
 	return set
 }
 
-func TestMappingsEmptyHarnessesLinksAll(t *testing.T) {
+func TestMappingsEmptyHarnessesIncludesAllTargets(t *testing.T) {
 	repo := fakeRepo(t)
 	home := t.TempDir()
-	cfg := cfgFor(repo, home) // Harnesses empty -> all
+	cfg := cfgFor(repo, home)
 
 	dests := destsOf(cfg)
 	want := []string{
@@ -447,140 +497,32 @@ func TestMappingsEmptyHarnessesLinksAll(t *testing.T) {
 		filepath.Join(home, ".config", "opencode", "plugins"),
 	}
 	if len(dests) != len(want) {
-		t.Fatalf("empty Harnesses: got %d links, want %d: %v", len(dests), len(want), dests)
+		t.Fatalf("empty Harnesses: got %d targets, want %d: %v", len(dests), len(want), dests)
 	}
 	for _, d := range want {
 		if !dests[d] {
-			t.Fatalf("empty Harnesses: missing link %q in %v", d, dests)
+			t.Fatalf("empty Harnesses: missing target %q in %v", d, dests)
 		}
 	}
 }
 
-func TestMappingsClaudeOnly(t *testing.T) {
+func TestMappingsHarnessSelection(t *testing.T) {
 	repo := fakeRepo(t)
 	home := t.TempDir()
 	cfg := cfgFor(repo, home)
 	cfg.Harnesses = []Harness{HarnessClaude}
 
 	dests := destsOf(cfg)
-	mustLink := []string{
-		filepath.Join(home, ".agents", "skills"),
-		filepath.Join(home, ".agents", "AGENTS.md"),
-		filepath.Join(home, ".claude", "skills"),
-		filepath.Join(home, ".claude", "CLAUDE.md"),
+	if !dests[filepath.Join(home, ".claude", "CLAUDE.md")] || !dests[filepath.Join(home, ".agents", "skills")] {
+		t.Fatalf("claude selection should include agents and claude targets: %v", dests)
 	}
-	mustNot := []string{
-		filepath.Join(home, ".copilot", "copilot-instructions.md"),
-		filepath.Join(home, ".copilot", "skills"),
-		filepath.Join(home, ".config", "opencode", "skills"),
-		filepath.Join(home, ".config", "opencode", "plugins"),
-	}
-	if len(dests) != len(mustLink) {
-		t.Fatalf("claude-only: got %d links, want %d: %v", len(dests), len(mustLink), dests)
-	}
-	for _, d := range mustLink {
-		if !dests[d] {
-			t.Fatalf("claude-only: missing %q in %v", d, dests)
-		}
-	}
-	for _, d := range mustNot {
-		if dests[d] {
-			t.Fatalf("claude-only: unexpected %q in %v", d, dests)
-		}
-	}
-}
-
-func TestMappingsCopilotOnlyIncludesSkillsDir(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-	cfg.Harnesses = []Harness{HarnessCopilot}
-
-	dests := destsOf(cfg)
-	mustLink := []string{
-		filepath.Join(home, ".agents", "skills"),
-		filepath.Join(home, ".agents", "AGENTS.md"),
-		filepath.Join(home, ".copilot", "skills"),
-		filepath.Join(home, ".copilot", "copilot-instructions.md"),
-	}
-	mustNot := []string{
-		filepath.Join(home, ".claude", "CLAUDE.md"),
-		filepath.Join(home, ".config", "opencode", "skills"),
-	}
-	if len(dests) != len(mustLink) {
-		t.Fatalf("copilot-only: got %d links, want %d: %v", len(dests), len(mustLink), dests)
-	}
-	for _, d := range mustLink {
-		if !dests[d] {
-			t.Fatalf("copilot-only: missing %q in %v", d, dests)
-		}
-	}
-	for _, d := range mustNot {
-		if dests[d] {
-			t.Fatalf("copilot-only: unexpected %q in %v", d, dests)
-		}
-	}
-}
-
-func TestMappingsOpencodeOnlyIncludesPlugins(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-	cfg.Harnesses = []Harness{HarnessOpenCode}
-
-	dests := destsOf(cfg)
-	mustLink := []string{
-		filepath.Join(home, ".agents", "skills"),
-		filepath.Join(home, ".agents", "AGENTS.md"),
-		filepath.Join(home, ".config", "opencode", "skills"),
-		filepath.Join(home, ".config", "opencode", "AGENTS.md"),
-		filepath.Join(home, ".config", "opencode", "prompts", "sdd"),
-		filepath.Join(home, ".config", "opencode", "plugins"),
-	}
-	mustNot := []string{
-		filepath.Join(home, ".claude", "CLAUDE.md"),
-		filepath.Join(home, ".copilot", "copilot-instructions.md"),
-	}
-	if len(dests) != len(mustLink) {
-		t.Fatalf("opencode-only: got %d links, want %d: %v", len(dests), len(mustLink), dests)
-	}
-	for _, d := range mustLink {
-		if !dests[d] {
-			t.Fatalf("opencode-only: missing %q in %v", d, dests)
-		}
-	}
-	for _, d := range mustNot {
-		if dests[d] {
-			t.Fatalf("opencode-only: unexpected %q in %v", d, dests)
-		}
-	}
-}
-
-func TestInstallClaudeOnlyReportCoversAgentsAndClaude(t *testing.T) {
-	repo := fakeRepo(t)
-	home := t.TempDir()
-	cfg := cfgFor(repo, home)
-	cfg.Harnesses = []Harness{HarnessClaude}
-
-	report, err := Install(cfg)
-	if err != nil {
-		t.Fatalf("Install error: %v", err)
-	}
-	if len(report) != 4 {
-		t.Fatalf("claude-only Install report = %d outcomes, want 4: %+v", len(report), report)
-	}
-	claudeMD := findOutcome(t, report, filepath.Join(home, ".claude", "CLAUDE.md"))
-	if claudeMD.Action != ActionLinked {
-		t.Fatalf("claude CLAUDE.md: want %q, got %q", ActionLinked, claudeMD.Action)
-	}
-	// No opencode link should have been created on disk.
-	if _, err := os.Lstat(filepath.Join(home, ".config", "opencode", "skills")); !os.IsNotExist(err) {
-		t.Fatalf("claude-only must not create opencode link, lstat err = %v", err)
+	if dests[filepath.Join(home, ".config", "opencode", "plugins")] {
+		t.Fatalf("claude selection should not include opencode targets: %v", dests)
 	}
 }
 
 func TestWantsEmptyMeansAll(t *testing.T) {
-	cfg := Config{} // no Harnesses
+	cfg := Config{}
 	for _, h := range AllHarnesses {
 		if !cfg.wants(h) {
 			t.Fatalf("empty Harnesses: wants(%q) = false, want true", h)
@@ -603,7 +545,6 @@ func TestWantsRespectsSelection(t *testing.T) {
 
 func TestResolveRepoDirValidatesContents(t *testing.T) {
 	repo := fakeRepo(t)
-
 	got, err := ResolveRepoDir(repo, "/some/cwd")
 	if err != nil {
 		t.Fatalf("valid repo rejected: %v", err)
@@ -615,7 +556,6 @@ func TestResolveRepoDirValidatesContents(t *testing.T) {
 
 func TestResolveRepoDirFallsBackToCwd(t *testing.T) {
 	repo := fakeRepo(t)
-
 	got, err := ResolveRepoDir("", repo)
 	if err != nil {
 		t.Fatalf("cwd fallback rejected: %v", err)
@@ -626,8 +566,7 @@ func TestResolveRepoDirFallsBackToCwd(t *testing.T) {
 }
 
 func TestResolveRepoDirRejectsInvalidRepo(t *testing.T) {
-	bare := t.TempDir() // no skills/, no AGENTS.md
-
+	bare := t.TempDir()
 	_, err := ResolveRepoDir(bare, "/cwd")
 	if err == nil {
 		t.Fatalf("expected error for repo missing skills/ and AGENTS.md")

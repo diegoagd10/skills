@@ -68,10 +68,10 @@ SDD is the structured planning layer for substantial changes.
 
 ### Artifact Store Policy
 
-- `engram` -> default when available; persistent memory across sessions
-- `openspec` -> file-based artifacts; use only when the user explicitly requests it
-- `hybrid` -> both backends; cross-session recovery + local files; more tokens per operation
-- `none` -> return results inline only; recommend enabling engram or openspec
+- `hybrid` -> default SDD persistence; repo files plus Engram copy
+- `engram` -> persistent memory backend used by hybrid for cross-session recovery
+- `openspec` -> file-based backend used by hybrid for local repository artifacts
+- `none` -> return results inline only; recommend enabling hybrid persistence
 
 ### Commands
 
@@ -100,39 +100,32 @@ Before executing ANY SDD command or natural-language SDD request, ensure this se
 
 This applies to `/sdd-new`, `/sdd-ff`, `/sdd-continue`, `/sdd-explore`, `/sdd-status`, `/sdd-apply`, `/sdd-verify`, `/sdd-archive`, and natural-language equivalents such as "use SDD to add dark mode" / "do it with SDD".
 
-Required preflight choices:
+Required preflight settings:
 
 1. **Execution mode**: `interactive` or `auto`.
-2. **Artifact store**: `openspec`, `engram`, or `both` when Engram is callable. If Engram is unavailable, offer only file/inline-safe choices.
-3. **Chained PR strategy**: `auto-forecast`, `ask-always`, `single-pr-default`, or `force-chained`.
+2. **Artifact store**: fixed to `hybrid` for SDD.
+3. **Delivery**: `single-pr` with optional maintainer-approved `size:exception`.
 4. **Review budget**: maximum changed lines before stopping for reviewer-burden approval.
 
 User-facing preflight question format:
 
-Ask the user directly with a compact, numbered preflight prompt. Match the user's current language for all user-facing prose. If the user writes Spanish, ask the preflight in Spanish. Keep option codes (`A1`, `B1`, `C1`, `D1`) and canonical values unchanged. Do NOT ask the user to type raw keys like `execution mode`, `artifact store`, `chained PR strategy`, or `review budget`. Do NOT mention non-existent tools. Do NOT invent informal values; use only the canonical values after the user chooses.
+Ask the user directly with a compact, numbered preflight prompt. Match the user's current language for all user-facing prose. If the user writes Spanish, ask the preflight in Spanish. Keep option codes (`A1`, `C1`, `D1`) and canonical values unchanged. Do NOT ask the user to type raw keys like `execution mode` or `review budget`. Do NOT mention non-existent tools. Do NOT invent informal values; use only the canonical values after the user chooses.
 
-Do NOT mix languages inside one preflight prompt: headings, option titles, descriptions, and follow-up text must all be in the user's current language. If the current language is Spanish, use the Spanish localized shape below as the neutral fallback; if an active persona defines a direct-conversation Spanish style, adapt only user-facing prose to that persona while preserving option codes and canonical values. Do not translate only the intro while keeping English labels like `Pace`, `Artifacts`, `Review`, `recommended`, `forecast`, or `budget`.
+Do NOT mix languages inside one preflight prompt: headings, option titles, descriptions, and follow-up text must all be in the user's current language. If the current language is Spanish, use the Spanish localized shape below as the neutral fallback; if an active persona defines a direct-conversation Spanish style, adapt only user-facing prose to that persona while preserving option codes and canonical values. Do not translate only the intro while keeping English labels like `Pace`, `Review`, `recommended`, `forecast`, or `budget`.
 
 Use this shape for English users, or translate user-facing prose to the user's current language while preserving option codes. Translation means the whole shape: headings, option titles, and descriptions together.
 
 ```text
 Before continuing with SDD, choose one option per group.
-Reply with "use recommended" or with codes like: A1, B1, C1, D1.
+Reply with "use recommended" or with codes like: A1, C1, D1.
 
 A. Pace
    A1 Interactive (recommended): show each phase and wait for confirmation before continuing.
    A2 Automatic: run phases back-to-back and stop only on high risk.
 
-B. Artifacts
-   B1 OpenSpec (recommended): repo files, traceable in review.
-   B2 Engram: faster, no spec files in the repo.
-   B3 Both: OpenSpec files plus Engram copy.
-
-C. PRs
-   C1 Ask me (recommended): stop and ask if the forecast exceeds the budget.
-   C2 Single PR: try to keep the change in one PR.
-   C3 Chained: split into chained PRs from the start.
-   C4 Auto: decide from the size forecast.
+C. Delivery
+   C1 Single PR (recommended): keep the change in one PR.
+   C2 Size exception: use only when the maintainer approved it.
 
 D. Review
    D1 400 lines (recommended): stop if forecast exceeds 400 changed lines.
@@ -146,22 +139,15 @@ If the user's current language is Spanish, use this localized shape:
 
 ```text
 Antes de continuar con SDD, elija una opción por grupo.
-Responda con "usar recomendado" o con códigos como: A1, B1, C1, D1.
+Responda con "usar recomendado" o con códigos como: A1, C1, D1.
 
 A. Ritmo
    A1 Interactivo (recomendado): mostrar cada fase y esperar confirmación antes de continuar.
    A2 Automático: ejecutar las fases seguidas y frenar solo ante riesgo alto.
 
-B. Artefactos
-   B1 OpenSpec (recomendado): archivos en el repo, trazables en revisión.
-   B2 Engram: más rápido, sin archivos de especificación en el repo.
-   B3 Ambos: archivos OpenSpec más copia en Engram.
-
-C. PRs
-   C1 Preguntarme (recomendado): frenar y preguntar si la estimación supera el presupuesto.
-   C2 Un solo PR: intentar mantener el cambio en un PR.
-   C3 Encadenados: separar en PRs encadenados desde el inicio.
-   C4 Auto: decidir según la estimación de tamaño.
+C. Entrega
+   C1 PR único (recomendado): mantener el cambio en un solo PR.
+   C2 Excepción de tamaño: usar solo cuando el maintainer la aprobó.
 
 D. Revisión
    D1 400 líneas (recomendado): frenar si la estimación supera 400 líneas cambiadas.
@@ -172,8 +158,7 @@ D. Revisión
 Map answers to canonical values:
 
 - Pace: A1/Interactive -> `interactive`; A2/Automatic -> `auto`.
-- Artifacts: B1/OpenSpec -> `openspec`; B2/Engram -> `engram`; B3/Both -> `both`.
-- PRs: C1/Ask me -> `ask-always`; C2/Single PR -> `single-pr-default`; C3/Chained -> `force-chained`; C4/Auto -> `auto-forecast`.
+- Delivery: C1/Single PR -> `single-pr`; C2/Size exception -> `exception-ok`.
 - Review: D1/400 lines -> `review_budget_lines: 400`; D2/800 lines -> `review_budget_lines: 800`; D3/Other -> ask one follow-up for the number.
 
 Hard gate rules:
@@ -237,37 +222,20 @@ Before the `sdd-propose` phase in interactive mode, offer the user a proposal qu
 
 ### Artifact Store Mode
 
-This is collected by `SDD Session Preflight`. If missing, enforce the hard gate before any phase work. Ask which artifact store they want for this change:
+This is collected by `SDD Session Preflight`. If missing, default to `hybrid` for this change and do not ask the user to choose a persistence mode.
 
-- **`engram`**: Fast, no files created. Artifacts live in engram only.
-- **`openspec`**: File-based. Creates `openspec/` with a shareable artifact trail.
-- **`both` / `hybrid`**: Both - files for team sharing + engram for cross-session recovery.
+- **`hybrid`**: Filesystem artifacts plus engram recovery for the same session.
 
-If the user doesn't specify, detect: if engram is available -> default to `engram`. Otherwise -> `none`.
-
-Cache the artifact store choice for the session. Pass it as `artifact_store.mode` to every sub-agent launch.
+Cache `hybrid` for the session. Pass it as `artifact_store.mode` to every sub-agent launch.
 
 ### Delivery Strategy
 
-This is collected by `SDD Session Preflight` as the chained PR strategy. If missing, enforce the hard gate before any phase work. Ask which delivery/review strategy they want:
+This is collected by `SDD Session Preflight`. The normal flow is `single-pr`; if the review budget is high, report the risk and require a maintainer-approved `size:exception` only when explicitly recorded.
 
-- **`ask-on-risk`** (default): Ask later if `sdd-tasks` forecasts high risk or >400 changed lines.
-- **`auto-chain`**: If forecast is high, continue with chained/stacked PR slices without asking again.
-- **`single-pr`**: Prefer one PR; if forecast exceeds 400 lines, require `size:exception` before apply.
-- **`exception-ok`**: Allow a large PR because the maintainer explicitly accepts `size:exception`.
+- **`single-pr`**: Use one PR for the change.
+- **`exception-ok`**: Maintain a single PR, but note that the maintainer approved a `size:exception`.
 
 Cache the delivery strategy for the session. Pass it as `delivery_strategy` to `sdd-tasks` and `sdd-apply` prompts.
-
-### Chain Strategy
-
-When `delivery_strategy` results in chained PRs (either by user choice via `ask-on-risk` or automatically via `auto-chain`), ask the user which chain strategy to use:
-
-- **`stacked-to-main`**: Each PR merges to main in order. Fast iteration, fix on the go. Best for speed-first teams and independent slices.
-- **`feature-branch-chain`**: The feature/tracker branch accumulates final integration; PR #1 targets the tracker branch, later child PRs target the immediate previous PR branch so review diffs stay focused. Only the tracker merges to main. Best for rollback control and coordinated releases.
-
-Cache the chain strategy for the session. Pass it as `chain_strategy` to `sdd-tasks` and `sdd-apply` prompts alongside `delivery_strategy`. Do not ask again unless the user changes scope.
-
-When delivery planning yields chained PRs, treat `chained-pr` (registry skill `ai-harness-chained-pr`) as a required skill match: resolve it by registry name through this template's existing skill-resolution mechanism (the same one it already uses to pass skills to phases) and ensure the `sdd-tasks` and `sdd-apply` phases load and follow it BEFORE planning or creating any PR. Do not hardcode the skill path; defer resolution to that mechanism.
 
 ### Dependency Graph
 
@@ -286,16 +254,11 @@ Each phase returns: `status`, `executive_summary`, `artifacts`, `next_recommende
 
 After `sdd-tasks` completes and before launching `sdd-apply`, inspect the task result summary for `Review Workload Forecast`.
 
-If it says `Chained PRs recommended: Yes`, `400-line budget risk: High`, estimated changed lines exceed 400, or `Decision needed before apply: Yes`, apply the cached `delivery_strategy`:
-
-- **`ask-on-risk`**: STOP and ask whether to split into chained/stacked PRs or proceed with `size:exception`. If the user chooses chained PRs and `chain_strategy` is not yet cached, also ask which chain strategy to use (stacked-to-main or feature-branch-chain).
-- **`auto-chain`**: Do not ask about splitting. If `chain_strategy` is not yet cached, ask which chain strategy to use. Then pass to `sdd-apply`: implement only the next autonomous slice using work-unit commits, with clear start, finish, verification, and rollback boundary.
-- **`single-pr`**: STOP and require/record maintainer-approved `size:exception` before `sdd-apply`.
-- **`exception-ok`**: Continue, but pass to `sdd-apply` that this run uses maintainer-approved `size:exception`.
+If it says `400-line budget risk: High` or estimated changed lines exceed 400, keep the delivery model single-PR and surface the risk clearly. If a maintainer-approved `size:exception` exists, continue; otherwise stop and ask for that approval before `sdd-apply`.
 
 Do this even in Automatic mode. Automatic mode does not override reviewer burnout protection.
 
-When launching `sdd-apply`, always include the resolved `delivery_strategy`, `chain_strategy`, and any chosen PR boundary/exception in the prompt.
+When launching `sdd-apply`, always include the resolved `delivery_strategy` and any maintainer-approved `size:exception` in the prompt.
 
 ## Model Assignments
 
@@ -325,7 +288,7 @@ The orchestrator resolves skills by scanning the installed skills directory ONCE
 
 Orchestrator skill resolution (do once per session):
 
-1. Scan the installed skills directory (where your platform symlinks `skills/`, e.g. `~/.config/opencode/skills/`) for `*/SKILL.md` and read each frontmatter (`name`, trigger/`description`, scope, exact path)
+1. Scan the installed skills directory (e.g. `~/.config/opencode/skills/`) for `*/SKILL.md` and read each frontmatter (`name`, trigger/`description`, scope, exact path)
 2. Cache the skill index for the rest of the session
 3. If no skills are found, warn the user and proceed without project-specific standards
 

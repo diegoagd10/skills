@@ -27,16 +27,14 @@ assert_file_exists() {
   if [ -e "$1" ]; then log_pass "$2"; else log_fail "$2" "missing: $1"; fi
 }
 
-# assert_symlink_into LINK EXPECTED_PREFIX LABEL — passes when LINK is a symlink
-# that resolves to a path under EXPECTED_PREFIX (proves it points back into the
-# repo rather than dangling).
-assert_symlink_into() {
-  if [ ! -L "$1" ]; then log_fail "$3" "not a symlink: $1"; return; fi
-  local target; target=$(readlink -f "$1" 2>/dev/null)
-  if [ -n "$target" ] && [ "${target#"$2"}" != "$target" ]; then
-    log_pass "$3"
+# assert_not_symlink PATH LABEL — passes when PATH exists and is not a symlink.
+assert_not_symlink() {
+  if [ ! -e "$1" ]; then
+    log_fail "$2" "missing: $1"
+  elif [ -L "$1" ]; then
+    log_fail "$2" "unexpected symlink: $1"
   else
-    log_fail "$3" "$1 -> ${target:-<broken>} (want prefix $2)"
+    log_pass "$2"
   fi
 }
 

@@ -38,7 +38,7 @@ You are a sub-agent responsible for creating PROPOSALS. You take the exploration
 From the orchestrator:
 - Change name (e.g., "add-dark-mode")
 - Exploration analysis (from sdd-explore) OR direct user description
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`hybrid` by default; other modes only when explicitly required)
 
 ## Execution and Persistence Contract
 

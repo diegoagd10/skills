@@ -2,17 +2,15 @@
 
 ## Mode Resolution
 
-The orchestrator passes `artifact_store.mode` with one of: `engram | openspec | hybrid | none`.
+The orchestrator passes `artifact_store.mode` with one of: `hybrid` (normal), `engram`, `openspec`, or `none`.
 
-The orchestrator ASKs the user which mode they want when `/sdd-new`, `/sdd-ff`, or `/sdd-continue` is invoked for the first time in a session. The choice is cached for the session.
-
-Default (if user doesn't specify): if Engram is available → `engram`. Otherwise → `none`.
+The orchestrator defaults to `hybrid` for SDD workflows and does not ask the user to choose a persistence mode during normal preflight.
 
 ## Mode Roles
 
 - **`engram`**: Working memory between sessions. Upserts overwrite — no iteration history. Local only, not shareable.
 - **`openspec`**: Source of truth. Files in repo, git history, team-shareable, full audit trail.
-- **`hybrid`**: Both — files for team + engram for recovery. Higher token cost.
+- **`hybrid`**: Filesystem artifacts plus engram recovery for the same session. This is the normal default.
 - **`none`**: Ephemeral. Lost when conversation ends.
 
 ### Mode Comparison
@@ -100,7 +98,7 @@ Do NOT return without saving what you learned. This is how the team builds persi
 
 SDD (with dependencies):
 ```
-Artifact store mode: {engram|openspec|hybrid|none}
+Artifact store mode: hybrid by default; use `engram`, `openspec`, or `none` only when explicitly required.
 Read these artifacts before starting (search returns truncated previews):
   mem_search(query: "sdd/{change-name}/{type}", project: "{project}") → get ID
   mem_get_observation(id: {id}) → full content (REQUIRED)
@@ -120,7 +118,7 @@ If you return without calling mem_save, the next phase CANNOT find your artifact
 
 SDD (no dependencies):
 ```
-Artifact store mode: {engram|openspec|hybrid|none}
+Artifact store mode: hybrid by default; use `engram`, `openspec`, or `none` only when explicitly required.
 
 PERSISTENCE (MANDATORY — do NOT skip):
 After completing your work, you MUST call:

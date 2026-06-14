@@ -21,11 +21,11 @@ const usage = `usage: ai-harness <command> [flags] [change]
 Commands:
   sdd-status   [change]   Report the SDD phase state for a change.
   sdd-continue [change]   Report the SDD dispatcher routing for a change.
-  install      [--repo P] Wire selected harnesses into your home: always symlink the
-                          generic .agents config, plus per-harness scopes for the harnesses
-                          you pick (claude, copilot, opencode).
-  uninstall    [--repo P] Remove every harness artifact we created (symlinks into the
-                          repo, generated commands, and the generated opencode.json).
+	install      [--repo P] Wire selected harnesses into your home: always copy the
+	                          generic .agents config, plus per-harness artifacts for the harnesses
+	                          you pick (claude, copilot, opencode).
+	uninstall              Remove every harness artifact we created (manifest-listed copies,
+	                          generated commands, and the generated opencode.json).
 
 Flags (sdd commands):
   --json                  Emit indented JSON instead of markdown.
@@ -130,29 +130,34 @@ func parseStatusArgs(args []string, stderr io.Writer) (statusOptions, int, bool)
 	return opts, 0, true
 }
 
-// runInstall drives the install/uninstall subcommands. It resolves the repo
-// root (--repo or cwd), validates it, builds a $HOME-based Config, runs the
-// requested operation, prints the per-target Report, and exits non-zero on
-// error. remove selects Uninstall over Install.
+// runInstall drives the install/uninstall subcommands. Install resolves and
+// validates the repo root (--repo or cwd); uninstall is manifest-only and does
+// not require the source repo. Both paths build a $HOME-based Config, print the
+// per-target Report, and exit non-zero on error.
 func runInstall(args []string, stdin io.Reader, interactive bool, stdout, stderr io.Writer, remove bool) int {
 	fs := flag.NewFlagSet("ai-harness", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	var repo, harness string
-	fs.StringVar(&repo, "repo", "", "repo root holding skills/ and AGENTS.md")
+	fs.StringVar(&repo, "repo", "", "repo root holding skills/ and AGENTS.md (install only)")
 	fs.StringVar(&harness, "harness", "", "comma-separated harnesses: claude,copilot,opencode")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintf(stderr, "ai-harness: %v\n", err)
-		return 1
-	}
-	repoDir, err := install.ResolveRepoDir(repo, cwd)
-	if err != nil {
-		fmt.Fprintf(stderr, "ai-harness: %v\n", err)
-		return 1
+	repoDir := repo
+	var err error
+	if !remove {
+		var cwd string
+		cwd, err = os.Getwd()
+		if err != nil {
+			fmt.Fprintf(stderr, "ai-harness: %v\n", err)
+			return 1
+		}
+		repoDir, err = install.ResolveRepoDir(repo, cwd)
+		if err != nil {
+			fmt.Fprintf(stderr, "ai-harness: %v\n", err)
+			return 1
+		}
 	}
 
 	// Uninstall always targets every harness; selection is install-only.
@@ -167,31 +172,54 @@ func runInstall(args []string, stdin io.Reader, interactive bool, stdout, stderr
 
 	cfg := homeConfig(repoDir)
 	cfg.Harnesses = selection
-	op := install.Install
+	var (
+		report  install.Report
+		entries []install.ManifestEntry
+		opErr   error
+	)
 	if remove {
-		op = install.Uninstall
+		report, opErr = install.Uninstall(cfg)
+	} else {
+		report, entries, opErr = install.Install(cfg)
 	}
-	report, opErr := op(cfg)
 	for _, o := range report {
 		fmt.Fprintln(stdout, formatOutcome(o))
+	}
+
+	if !remove {
+		var manifestErr error
+		if wantsHarness(selection, install.HarnessOpenCode) {
+			var cmdEntries []install.ManifestEntry
+			cmdEntries, manifestErr = syncOpencodeCommands(repoDir, opencodeDir(), stdout)
+			entries = append(entries, cmdEntries...)
+			if manifestErr == nil {
+				var configEntries []install.ManifestEntry
+				configEntries, manifestErr = syncOpencodeConfig(repoDir, opencodeDir(), stdout)
+				entries = append(entries, configEntries...)
+			}
+		}
+		if opErr != nil || manifestErr != nil {
+			if len(entries) > 0 {
+				if err := install.WriteManifest(cfg, entries); err != nil {
+					fmt.Fprintf(stderr, "ai-harness: %v\n", err)
+					return 1
+				}
+			}
+			if opErr != nil {
+				fmt.Fprintf(stderr, "ai-harness: %v\n", opErr)
+				return 1
+			}
+			fmt.Fprintf(stderr, "ai-harness: %v\n", manifestErr)
+			return 1
+		}
+		if err := install.WriteManifest(cfg, entries); err != nil {
+			fmt.Fprintf(stderr, "ai-harness: %v\n", err)
+			return 1
+		}
 	}
 	if opErr != nil {
 		fmt.Fprintf(stderr, "ai-harness: %v\n", opErr)
 		return 1
-	}
-
-	// OpenCode extras (generated commands + opencode.json) only run when the
-	// opencode harness is in play. On uninstall the selection is AllHarnesses,
-	// so the extras are always cleaned up (Remove handles absent gracefully).
-	if wantsHarness(selection, install.HarnessOpenCode) {
-		if cmdErr := syncOpencodeCommands(repoDir, opencodeDir(), remove, stdout); cmdErr != nil {
-			fmt.Fprintf(stderr, "ai-harness: %v\n", cmdErr)
-			return 1
-		}
-		if jsonErr := syncOpencodeConfig(repoDir, opencodeDir(), remove, stdout); jsonErr != nil {
-			fmt.Fprintf(stderr, "ai-harness: %v\n", jsonErr)
-			return 1
-		}
 	}
 	return 0
 }
@@ -305,18 +333,15 @@ func parseSelectionLine(line string) ([]install.Harness, error) {
 }
 
 // syncOpencodeConfig generates the OpenCode agent config (opencode.json) with
-// the real $HOME substituted on install, and removes that generated file on
-// uninstall. This is the composition root: the only place $HOME is read; the
-// opencode package itself stays host-injectable.
-func syncOpencodeConfig(repoDir, opencodeDir string, remove bool, stdout io.Writer) error {
-	if remove {
-		out, err := opencode.Remove(opencodeDir)
-		fmt.Fprintln(stdout, formatOpencodeOutcome(out))
-		return err
-	}
+// the real $HOME substituted on install. This is the composition root: the only
+// place $HOME is read; the opencode package itself stays host-injectable.
+func syncOpencodeConfig(repoDir, opencodeDir string, stdout io.Writer) ([]install.ManifestEntry, error) {
 	out, err := opencode.Generate(repoDir, opencodeDir, os.Getenv("HOME"))
 	fmt.Fprintln(stdout, formatOpencodeOutcome(out))
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return []install.ManifestEntry{{Dest: out.Dest, Source: out.Src, Kind: "file"}}, nil
 }
 
 // formatOpencodeOutcome renders the opencode.json generate/remove result as a
@@ -335,23 +360,19 @@ func formatOpencodeOutcome(o opencode.Outcome) string {
 }
 
 // syncOpencodeCommands generates the OpenCode slash-command files from the
-// canonical prompts/commands/ source on install, and removes those same
-// generated artifacts on uninstall. The command dir is <OpencodeDir>/commands —
-// OpenCode's user-level custom-command location.
-func syncOpencodeCommands(repoDir, opencodeDir string, remove bool, stdout io.Writer) error {
+// canonical prompts/commands/ source. The command dir is <OpencodeDir>/commands
+// — OpenCode's user-level custom-command location.
+func syncOpencodeCommands(repoDir, opencodeDir string, stdout io.Writer) ([]install.ManifestEntry, error) {
 	profile := commands.OpenCodeProfile(filepath.Join(opencodeDir, "commands"))
-	if remove {
-		report, err := commands.Remove(repoDir, profile)
-		for _, o := range report {
-			fmt.Fprintln(stdout, formatCommandOutcome(o))
-		}
-		return err
-	}
 	report, err := commands.Generate(repoDir, profile)
 	for _, o := range report {
 		fmt.Fprintln(stdout, formatCommandOutcome(o))
 	}
-	return err
+	entries := make([]install.ManifestEntry, 0, len(report))
+	for _, o := range report {
+		entries = append(entries, install.ManifestEntry{Dest: o.Dest, Source: o.Src, Kind: "file"})
+	}
+	return entries, err
 }
 
 // formatCommandOutcome renders one generated/removed command file as a line.
@@ -384,8 +405,8 @@ func homeConfig(repoDir string) install.Config {
 
 // opencodeDir returns the OpenCode config root under $HOME. Generated
 // slash-commands live in its commands/ subdir. Kept separate from
-// install.Config so the symlink module is not burdened with a path it never
-// links.
+// install.Config so the copy/ownership module is not burdened with a path it
+// never manages.
 func opencodeDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".config", "opencode")
 }
@@ -393,18 +414,15 @@ func opencodeDir() string {
 // formatOutcome renders one Report entry as a single human-readable line.
 func formatOutcome(o install.Outcome) string {
 	switch o.Action {
-	case install.ActionLinked, install.ActionRelinked:
-		return fmt.Sprintf("  %s %s -> %s", o.Action, o.Dest, o.Src)
-	case install.ActionBackedUp:
-		return fmt.Sprintf("  backed up %s -> %s; linked -> %s", o.Dest, o.Backup, o.Src)
+	case install.ActionCopied, install.ActionOverwritten:
+		return fmt.Sprintf("  %s %s <- %s", o.Action, o.Dest, o.Src)
 	case install.ActionSourceMissing:
 		return fmt.Sprintf("  source missing for %s: %s", o.Dest, o.Src)
 	case install.ActionRemoved:
-		return fmt.Sprintf("  removed %s (was -> %s)", o.Dest, o.Target)
-	case install.ActionSkippedForeign:
-		return fmt.Sprintf("  skipped %s (points elsewhere: %s)", o.Dest, o.Target)
-	case install.ActionSkippedRealFile:
-		return fmt.Sprintf("  skipped %s (real file)", o.Dest)
+		if o.Target != "" {
+			return fmt.Sprintf("  removed %s (from %s)", o.Dest, o.Target)
+		}
+		return fmt.Sprintf("  removed %s", o.Dest)
 	case install.ActionAbsent:
 		return fmt.Sprintf("  absent %s", o.Dest)
 	default:

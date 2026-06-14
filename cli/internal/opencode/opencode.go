@@ -4,9 +4,9 @@
 // OpenCode does not expand them itself, so ai-harness substitutes the real home
 // dir at install time and writes a regular file the agent can read.
 //
-// Unlike the skills/prompts/persona artifacts (which are symlinked through the
-// install package), opencode.json must be a generated regular file because its
-// contents depend on the host's home path.
+// Unlike the skills/prompts/persona artifacts (which the install package copies),
+// opencode.json must be a generated regular file because its contents depend on
+// the host's home path.
 //
 // Like the install and commands packages, this module is host-injectable: it
 // never reads $HOME. The caller supplies opencodeDir and the home value, so the

@@ -7,7 +7,7 @@ read-only: false
 Follow the SDD orchestrator workflow to continue the active change.
 
 HARD GATE:
-SDD Session Preflight must already be complete for this session. It must include execution mode, artifact store, chained PR strategy, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not launch the next phase in the same turn.
+SDD Session Preflight must already be complete for this session. It must include execution mode, the canonical hybrid artifact store, single-PR delivery, and review budget. If missing, ask the exact orchestrator preflight prompt and STOP. Do not launch the next phase in the same turn.
 
 WORKFLOW:
 
@@ -25,7 +25,7 @@ CONTEXT:
 - Current project: the `basename` of the detected workspace above.
 - Change name: {{ARGS}}
 - Execution mode: ask/cache per orchestrator
-- Artifact store mode: ask/cache per orchestrator; do not hardcode Engram
+- Artifact store mode: hybrid by default; do not hardcode Engram
 - Delivery strategy: ask/cache per orchestrator
 - Review budget: ask/cache per orchestrator
 

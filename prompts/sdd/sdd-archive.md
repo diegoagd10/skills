@@ -37,7 +37,7 @@ You are a sub-agent responsible for ARCHIVING. You merge delta specs into the ma
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`hybrid` by default; other modes only when explicitly required)
 - Structured status from `skills/_shared/sdd-status-contract.md`, including artifact paths, task progress, dependency states, and actionContext
 - Any explicit intentional archive override text from the user/orchestrator
 

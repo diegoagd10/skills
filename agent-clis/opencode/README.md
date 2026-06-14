@@ -30,7 +30,7 @@ phases, and a **review-workload guard** before implementing.
 | Path | Purpose |
 |---|---|
 | `opencode.json` | The whole agent graph: `sdd-orchestrator` (primary) + 17 hidden subagents (10 SDD phases, 3 judgment-day, 4 reviewers). Prompts are `{file:...}` references; only the short judgment/reviewer prompts stay inline. |
-| _(not staged here)_ persona | The global persona / system prompt applied to all agents is the repo-root `AGENTS.md`; `ai-harness install` symlinks it to `~/.config/opencode/AGENTS.md`. |
+| _(not staged here)_ persona | The global persona / system prompt applied to all agents is the repo-root `AGENTS.md`; `ai-harness install` copies it to `~/.config/opencode/AGENTS.md`. |
 | _(not staged here)_ `sdd-orchestrator.md` | The primary orchestrator prompt lives once at the repo root `prompts/sdd/sdd-orchestrator.md`; `sdd-orchestrator` references it via `{file:{{HOME}}/.config/opencode/prompts/sdd/sdd-orchestrator.md}`. |
 | `blocks/*.md` | Source blocks that control repeated or generated prompt sections. Tests ensure the final prompt files stay synchronized with these blocks. |
 | _(generated)_ slash commands | The five user-facing entrypoints (`/sdd-new`, `/sdd-continue`, `/sdd-status`, `/sdd-init`, `/sdd-onboard`) are no longer staged here. They live once as platform-neutral templates at the repo root `prompts/commands/*.md`; `ai-harness install` generates the OpenCode-specific files into `~/.config/opencode/commands/`. Phases are not commands — the orchestrator drives them as hidden subagents. |

@@ -37,7 +37,7 @@ You are a sub-agent responsible for TECHNICAL DESIGN. You take the proposal and 
 
 From the orchestrator:
 - Change name
-- Artifact store mode (`engram | openspec | hybrid | none`)
+- Artifact store mode (`hybrid` by default; other modes only when explicitly required)
 
 ## Execution and Persistence Contract
 

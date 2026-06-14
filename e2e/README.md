@@ -8,7 +8,7 @@ only check the generated files in isolation.
 
 | Tier | Needs | What it proves | Hermetic |
 |---|---|---|---|
-| **1. Install** | `go` | `ai-harness install` generates a valid `opencode.json` (with `{{HOME}}` substituted), resolvable symlinks (`skills`, `AGENTS.md`, `prompts/sdd`, `plugins`), and the five slash-commands | ✅ |
+| **1. Install** | `go` | `ai-harness install` generates a valid `opencode.json` (with `{{HOME}}` substituted), copied OpenCode assets (`skills`, `AGENTS.md`, `prompts/sdd`, `plugins`), and the five slash-commands | ✅ |
 | **2. Config-load** | `opencode` | `opencode agent list` loads our agent graph (`sdd-orchestrator` + the hidden subagents) and the plugin, with no LLM/auth | ✅ |
 | **3a. Plugin unit** | `bun` | `extractVariants` in `model-variants.ts` behaves (mocked provider list) | ✅ |
 | **3b. Live smoke** | `opencode` + a provider key | A real `opencode run` answers and the plugin writes a non-empty `~/.ai-harness/cache/model-variants.json` | ❌ needs auth |

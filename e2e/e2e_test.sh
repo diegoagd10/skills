@@ -4,7 +4,7 @@
 #
 # Tiers (each runs only when its prerequisite tool is present):
 #   1. Install (always)      — build ai-harness, install into a clean HOME, and
-#                              assert the generated opencode.json, symlinks, and
+#                              assert the generated opencode.json, copied files,
 #                              command files are correct. Hermetic, no network.
 #   2. OpenCode config-load  — requires the `opencode` binary. Proves OpenCode
 #                              actually parses our agent graph (sdd-orchestrator
@@ -66,15 +66,21 @@ assert_file_not_contains "$OC_JSON" "opencode/gpt-5" "opencode.json does not ass
 assert_file_contains "$OC_JSON" "minimax/MiniMax-M2.7" "opencode.json assigns minimax to sdd-init/sdd-archive"
 assert_file_contains "$OC_JSON" "openai/gpt-5.4-mini" "opencode.json assigns gpt-5.4-mini to sdd-apply"
 
-# Symlinks point back into the repo.
-assert_symlink_into "$OC_CFG/skills"      "$REPO_DIR" "skills symlink resolves into repo"
-assert_symlink_into "$OC_CFG/AGENTS.md"   "$REPO_DIR" "AGENTS.md (persona) symlink resolves into repo"
-assert_symlink_into "$OC_CFG/prompts/sdd" "$REPO_DIR" "prompts/sdd symlink resolves into repo"
-assert_symlink_into "$OC_CFG/plugins"     "$REPO_DIR" "plugins symlink resolves into repo"
+# Copied OpenCode assets are regular files / directories, not symlinks.
+assert_not_symlink "$OC_CFG/skills"      "skills directory is copied"
+assert_not_symlink "$OC_CFG/AGENTS.md"   "AGENTS.md (persona) is copied"
+assert_not_symlink "$OC_CFG/prompts/sdd" "prompts/sdd directory is copied"
+assert_not_symlink "$OC_CFG/plugins"     "plugins directory is copied"
 
-# The orchestrator's {file:...} prompt ref and the plugin resolve through the links.
-assert_file_exists "$OC_CFG/prompts/sdd/sdd-orchestrator.md" "orchestrator prompt resolves through symlink"
-assert_file_exists "$OC_CFG/plugins/model-variants.ts"        "model-variants plugin resolves through symlink"
+# The orchestrator prompt and plugin resolve from copied files.
+assert_file_exists "$OC_CFG/prompts/sdd/sdd-orchestrator.md" "orchestrator prompt is copied"
+assert_file_exists "$OC_CFG/plugins/model-variants.ts"        "model-variants plugin is copied"
+
+# Manifest records the owned copied files.
+MANIFEST="$H/.config/ai-harness/install-manifest.json"
+assert_file_exists "$MANIFEST" "install manifest generated"
+assert_file_contains "$MANIFEST" "$OC_CFG/AGENTS.md" "manifest records OpenCode AGENTS.md"
+assert_file_contains "$MANIFEST" "$OC_CFG/opencode.json" "manifest records generated opencode.json"
 
 # Generated slash-commands.
 for cmd in sdd-new sdd-continue sdd-status sdd-init sdd-onboard; do
@@ -140,5 +146,16 @@ else
     log_fail "model-variants plugin wrote a non-empty cache" "missing or empty: $cache"
   fi
 fi
+
+# --- Post-install uninstall verification ------------------------------------
+log_section "Post-install uninstall verification"
+
+echo 'edited by e2e' >>"$OC_CFG/AGENTS.md"
+printf 'keep me\n' >"$OC_CFG/custom.txt"
+HOME="$H" "$BIN" uninstall --repo "$REPO_DIR" </dev/null >"$WORK/uninstall.log" 2>&1
+if [ $? -eq 0 ]; then log_pass "ai-harness uninstall exits 0"; else log_fail "ai-harness uninstall exits 0" "$(cat "$WORK/uninstall.log")"; fi
+assert_file_not_contains "$OC_CFG/AGENTS.md" "edited by e2e" "edited installed file removed on uninstall"
+assert_file_exists "$OC_CFG/custom.txt" "unlisted custom file remains after uninstall"
+assert_file_not_contains "$MANIFEST" "$OC_CFG/AGENTS.md" "manifest removed after uninstall"
 
 print_summary
