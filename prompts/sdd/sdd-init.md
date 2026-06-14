@@ -1,25 +1,3 @@
----
-name: sdd-init
-description: "Trigger: sdd init, iniciar sdd, openspec init. Initialize SDD context, testing capabilities, and persistence."
-disable-model-invocation: true
-user-invocable: false
-license: MIT
-metadata:
-  author: diegoagd10
-  version: "3.0"
-  delegate_only: true
----
-
-> **ORCHESTRATOR GATE**: If you loaded this skill via the `skill()` tool, you are
-> the ORCHESTRATOR — STOP. Do NOT execute these instructions inline. Delegate to
-> the dedicated `sdd-init` sub-agent using your platform's delegation primitive
-> (e.g., `task(...)`, sub-agent invocation, etc.). This skill is for EXECUTORS
-> only.
-
-## Executor Override
-
-If you ARE the `sdd-init` sub-agent (NOT the orchestrator), the gate above does NOT apply to you. Continue with the phase work below. Do NOT delegate. Do NOT call the Skill tool. You are the executor — execute.
-
 ## Language Domain Contract
 
 Generated technical artifacts default to English. Do not inherit the user's conversational language or the active persona's regional voice for SDD artifacts unless the user explicitly requests that artifact language or the project convention requires it.
@@ -66,8 +44,104 @@ Run this phase when the orchestrator/user asks to initialize SDD in a project. Y
 
 Return `status`, `executive_summary`, `artifacts`, `next_recommended`, and `risks`. Include project, stack, persistence mode, detected test command (or a flag that none exists), testing capability table, saved observation IDs/paths, and next `/sdd-explore` or `/sdd-new` step. Strict TDD is always active, so report it as a constant, not a resolved status.
 
+## Testing Capability Checklist
+
+- Test runner: `package.json` scripts/deps, `pyproject.toml`, `pytest.ini`, `go.mod`, `Cargo.toml`, `Makefile`.
+- Test layers: unit runner; integration libraries (`testing-library`, `httpx`, `httptest`, `WebApplicationFactory`); E2E tools (`playwright`, `cypress`, `selenium`, `chromedp`).
+- Coverage: `vitest --coverage`, `jest --coverage`, `c8`, `pytest-cov`, `go test -cover`, `coverlet`.
+- Quality: linter, type checker, formatter commands.
+
+## Skill Registry Scan Rules
+
+- Scan user skills: `~/.config/opencode/skills/`.
+- Scan project skills: `{project-root}/skills/` and `{project-root}/.opencode/skills/`.
+- Skip `sdd-*`, `_shared`, and `skill-registry`; deduplicate by skill name, preferring project-level skills over user-level skills.
+- Read each selected `SKILL.md` frontmatter as needed.
+- Extract `name`, trigger text from `description`, full `SKILL.md` path, and scope.
+- Treat the registry as an index, not a generated summary; subagents receive exact paths and read the full skill source of truth.
+- Scan project convention files: `agents.md` and `AGENTS.md`.
+- For index files such as `AGENTS.md`, extract referenced file paths and include both the index and referenced files in the registry.
+
+## LLM-First Skill Criteria
+
+- Treat skills as runtime instruction contracts, not human documentation.
+- Required structure: frontmatter, Activation Contract, Hard Rules, Decision Gates, Execution Steps, Output Contract, References.
+- Keep `description` quoted, one physical line, trigger-first, and no longer than 250 characters.
+- Target 180-450 body tokens; move examples, schemas, edge cases, and background into local `references/` or `assets/`.
+- References must be local files and stable relative to the skill directory when possible.
+- Quality gates: hard rules are observable, decision gates cover real forks, output contract states exactly what to return, and references resolve locally.
+
+## Engram Saves
+
+```text
+mem_save title/topic_key: sdd-init/{project}
+type: architecture
+content: detected project context markdown
+capture_prompt: false when available
+
+mem_save title/topic_key: sdd/{project}/testing-capabilities
+type: config
+content: testing capabilities markdown
+capture_prompt: false when available
+
+mem_save title/topic_key: skill-registry
+type: config
+content: registry markdown
+capture_prompt: false when available
+```
+
+## OpenSpec Skeleton
+
+```text
+openspec/
+├── config.yaml
+├── specs/
+└── changes/
+    └── archive/
+```
+
+`config.yaml` should include concise context, `strict_tdd`, testing capabilities, and phase rules for proposal/spec/design/tasks/apply/verify/archive. Keep `context:` under 10 lines.
+
+## Testing Capabilities Format
+
+```markdown
+## Testing Capabilities
+
+**Strict TDD Mode**: {enabled/disabled}
+**Detected**: {date}
+
+### Test Runner
+
+- Command: `{command}`
+- Framework: {name}
+
+### Test Layers
+
+| Layer       | Available | Tool        |
+| ----------- | --------- | ----------- |
+| Unit        | ✅ / ❌   | {tool or —} |
+| Integration | ✅ / ❌   | {tool or —} |
+| E2E         | ✅ / ❌   | {tool or —} |
+
+### Coverage
+
+- Available: ✅ / ❌
+- Command: `{command or —}`
+
+### Quality Tools
+
+| Tool         | Available | Command        |
+| ------------ | --------- | -------------- |
+| Linter       | ✅ / ❌   | {command or —} |
+| Type checker | ✅ / ❌   | {command or —} |
+| Formatter    | ✅ / ❌   | {command or —} |
+```
+
+## Output Templates
+
+For each mode, include project, stack, persistence, Strict TDD Mode, Testing Capabilities table, artifacts created/saved, limitations where relevant, and next steps. Engram mode must mention local/non-shareable limitations; none mode must recommend enabling persistence.
+
 ## References
 
-- [references/init-details.md](references/init-details.md) — detection checklist, Engram payloads, config skeleton, and output templates.
 - `skills/_shared/engram-convention.md` — Engram artifact naming.
 - `skills/_shared/openspec-convention.md` — openspec layout and rules.
