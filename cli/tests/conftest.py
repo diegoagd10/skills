@@ -64,3 +64,19 @@ def run_go_status(go_cli: Path, root: Path, *args: str) -> subprocess.CompletedP
         capture_output=True,
         text=True,
     )
+
+
+def run_go_continue(go_cli: Path, root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """Run `ai-harness-go sdd-continue <args>` and capture stdout/exit code.
+
+    Mirrors ``run_go_status`` so parity tests can exercise the Go reference for
+    both subcommands. The Go binary always attaches per-phase instructions on
+    ``sdd-continue``; ``--instructions`` is accepted and ignored, so callers
+    usually omit it.
+    """
+    return subprocess.run(
+        [str(go_cli), "sdd-continue", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )

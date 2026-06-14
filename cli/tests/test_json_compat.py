@@ -9,7 +9,7 @@ import pytest
 
 from ai_harness import compat
 from ai_harness.sdd import resolve
-from conftest import run_go_status, seed_ready_change, write_file
+from conftest import run_go_continue, run_go_status, seed_ready_change, write_file
 
 # Top-level JSON keys in Go struct order. phaseInstructions is omitted unless
 # --instructions is set, so it is excluded from the no-instructions golden order.
@@ -110,17 +110,40 @@ PARITY_FIXTURES = {
 
 
 @pytest.mark.parametrize("fixture", list(PARITY_FIXTURES), ids=list(PARITY_FIXTURES))
-@pytest.mark.parametrize("instructions", [False, True], ids=["plain", "instructions"])
-def test_json_matches_go_binary(go_cli, tmp_path: Path, fixture: str, instructions: bool):
+@pytest.mark.parametrize(
+    "command,instructions",
+    [
+        ("sdd-status", False),
+        ("sdd-status", True),
+        ("sdd-continue", False),
+        ("sdd-continue", True),
+    ],
+    ids=[
+        "sdd-status-plain",
+        "sdd-status-instructions",
+        "sdd-continue-plain",
+        "sdd-continue-instructions",
+    ],
+)
+def test_json_matches_go_binary(
+    go_cli, tmp_path: Path, fixture: str, command: str, instructions: bool
+):
     PARITY_FIXTURES[fixture](tmp_path)
 
-    go_args = ["--json", "--cwd", str(tmp_path)]
-    if instructions:
-        go_args.append("--instructions")
-    go = run_go_status(go_cli, tmp_path, *go_args)
+    # Go's sdd-continue always includes instructions (--instructions is accepted
+    # and ignored); the Python resolver must mirror that, regardless of the flag.
+    if command == "sdd-continue":
+        go = run_go_continue(go_cli, tmp_path, "--json", "--cwd", str(tmp_path))
+        include_instructions = True
+    else:
+        go_args = ["--json", "--cwd", str(tmp_path)]
+        if instructions:
+            go_args.append("--instructions")
+        go = run_go_status(go_cli, tmp_path, *go_args)
+        include_instructions = instructions
     assert go.returncode == 0, go.stderr
 
-    status = resolve(str(tmp_path), "", "", instructions)
+    status = resolve(str(tmp_path), "", "", include_instructions)
     py_json = compat.status_to_json(status)
 
     assert py_json == go.stdout.rstrip("\n")

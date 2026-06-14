@@ -77,3 +77,54 @@ def test_human_output_renders_change_name(tmp_path: Path):
     result = runner.invoke(app, ["sdd-status", "--cwd", str(tmp_path)])
     assert result.exit_code == 0
     assert "add-auth" in result.stdout
+
+
+# --- sdd-continue -----------------------------------------------------------
+
+
+def test_sdd_continue_command_name_is_hyphenated(tmp_path: Path):
+    seed_ready_change(tmp_path, "thin", "- [ ] 1.1 Work\n")
+    result = runner.invoke(app, ["sdd-continue", "--json", "--cwd", str(tmp_path)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["schemaName"] == "ai-harness.sdd-status"
+    assert payload["changeName"] == "thin"
+
+
+def test_sdd_continue_json_always_includes_phase_instructions(tmp_path: Path):
+    seed_ready_change(tmp_path, "thin", "- [ ] 1.1 Work\n")
+    plain = runner.invoke(app, ["sdd-continue", "--json", "--cwd", str(tmp_path)])
+    assert json.loads(plain.stdout)["phaseInstructions"]["apply"][0] == "Change: thin"
+
+
+def test_sdd_continue_instructions_flag_is_accepted_and_ignored(tmp_path: Path):
+    seed_ready_change(tmp_path, "thin", "- [ ] 1.1 Work\n")
+    with_flag = runner.invoke(
+        app, ["sdd-continue", "--json", "--instructions", "--cwd", str(tmp_path)]
+    )
+    without_flag = runner.invoke(app, ["sdd-continue", "--json", "--cwd", str(tmp_path)])
+    assert with_flag.exit_code == 0
+    assert json.loads(with_flag.stdout) == json.loads(without_flag.stdout)
+
+
+def test_sdd_continue_human_output_uses_dispatcher_markdown(tmp_path: Path):
+    seed_ready_change(tmp_path, "thin", "- [ ] 1.1 Work\n")
+    result = runner.invoke(app, ["sdd-continue", "--cwd", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "## Native SDD Dispatcher: thin" in result.stdout
+    assert "### Dependency States" in result.stdout
+    assert "### JSON" in result.stdout
+    assert "```json" in result.stdout
+    # Dispatcher markdown targets LLM consumption; no Rich/ANSI noise.
+    assert "\x1b" not in result.stdout
+
+
+def test_sdd_continue_blocked_state_exits_zero_with_reasons(tmp_path: Path):
+    # No openspec/changes at all -> blocked sdd-new, but a valid status (exit 0).
+    result = runner.invoke(app, ["sdd-continue", "--cwd", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "No active OpenSpec changes found" in result.stdout
+    # Blocked reasons section appears because reasons are non-empty.
+    assert "### Blocked Reasons" in result.stdout
+    # No "Next Phase Instructions" when next_recommended is sdd-new.
+    assert "### Next Phase Instructions" not in result.stdout
