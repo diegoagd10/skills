@@ -15,7 +15,7 @@ Commands that select, continue, apply, verify, or archive an SDD change MUST fir
 
 ## Native Engine
 
-- When the `ai-harness` binary is available, prefer `ai-harness sdd-status [change] --cwd <repo> --json --instructions` for read-only status and `ai-harness sdd-continue [change] --cwd <repo>` for dispatcher output.
+- When the `ai-harness` binary is available, prefer `ai-harness sdd-status --cwd <repo> --json --instructions [change]` for read-only status and `ai-harness sdd-continue --cwd <repo> [change]` for dispatcher output.
 - Treat native status JSON as authoritative over prompt inference or manually reconstructed state.
 - When `blockedReasons` is non-empty, do not proceed to terminal, archive, or apply work. Return or report `blockedReasons` and stop unless `nextRecommended` is `verify`, in which case verification may run only to remediate or refresh evidence for the blockers. When `nextRecommended` is `resolve-blockers`, always report `blockedReasons` and stop.
 - `nextRecommended` is a bounded machine token for routing, not human prose. Route only by `nextRecommended` and dependency states.

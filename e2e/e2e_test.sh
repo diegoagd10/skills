@@ -7,7 +7,7 @@
 #                              assert the generated opencode.json, symlinks, and
 #                              command files are correct. Hermetic, no network.
 #   2. OpenCode config-load  — requires the `opencode` binary. Proves OpenCode
-#                              actually parses our agent graph (gentle-orchestrator
+#                              actually parses our agent graph (sdd-orchestrator
 #                              + hidden subagents) and loads the plugin, with no
 #                              LLM/auth (`opencode agent list`).
 #   3a. Plugin unit test     — requires `bun`. Runs the model-variants unit test.
@@ -61,7 +61,8 @@ assert_file_not_contains "$OC_JSON" "{{HOME}}" "opencode.json has no unsubstitut
 assert_file_contains "$OC_JSON" "$H/.config/opencode/prompts/sdd" "opencode.json references the substituted home path"
 
 # Per-agent default model assignments survive generation.
-assert_file_contains "$OC_JSON" "opencode/gpt-5" "opencode.json assigns gpt-5 to the gpt-5 stages"
+assert_file_contains "$OC_JSON" "openai/gpt-5.5" "opencode.json assigns gpt-5.5 to the primary orchestrator"
+assert_file_not_contains "$OC_JSON" "opencode/gpt-5" "opencode.json does not assign stale opencode/gpt-5 to SDD stages"
 assert_file_contains "$OC_JSON" "minimax/MiniMax-M2.7" "opencode.json assigns minimax to sdd-init/sdd-archive"
 assert_file_contains "$OC_JSON" "openai/gpt-5.4-mini" "opencode.json assigns gpt-5.4-mini to sdd-apply"
 
@@ -89,7 +90,7 @@ else
   agents_out="$(oc agent list --pure 2>&1)"
   agents_code=$?
   if [ "$agents_code" -eq 0 ]; then log_pass "opencode agent list --pure exits 0"; else log_fail "opencode agent list --pure exits 0" "$agents_out"; fi
-  assert_str_contains "agent graph exposes gentle-orchestrator (primary)" "$agents_out" "gentle-orchestrator"
+  assert_str_contains "agent graph exposes sdd-orchestrator (primary)" "$agents_out" "sdd-orchestrator"
   for sub in sdd-apply sdd-verify jd-judge-a review-risk; do
     assert_str_contains "agent graph exposes subagent: $sub" "$agents_out" "$sub"
   done

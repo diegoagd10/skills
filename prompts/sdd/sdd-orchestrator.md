@@ -1,6 +1,6 @@
-# Gentle AI — SDD Orchestrator Instructions
+# SDD-Orchestrator Instructions
 
-Bind this to the dedicated `gentle-orchestrator` agent only. Do NOT apply it to executor phase agents such as `sdd-apply` or `sdd-verify`.
+Bind this to the dedicated `sdd-orchestrator` agent only. Do NOT apply it to executor phase agents such as `sdd-apply` or `sdd-verify`.
 
 ## SDD Orchestrator
 
@@ -92,7 +92,7 @@ wants to resume mid-cycle uses `/sdd-continue`, which routes to the next ready p
 
 ### Native SDD Dispatcher Guard
 
-Before routing, continuing, applying, verifying, or archiving an SDD change, use the native dispatcher when `ai-harness` is available: `ai-harness sdd-continue [change] --cwd <repo>` or `ai-harness sdd-status [change] --cwd <repo> --json --instructions`. Treat native status JSON as authoritative over prompt inference. Route only by `nextRecommended` and dependency states; never infer from free text. If `blockedReasons` is non-empty, do not proceed to apply, archive, or terminal work. If `nextRecommended` is `verify`, verification/remediation may run only to refresh evidence; if `nextRecommended` is `resolve-blockers`, report `blockedReasons` and stop. If the binary is unavailable, fall back to the existing prompt contract and manual status schema.
+Before routing, continuing, applying, verifying, or archiving an SDD change, use the native dispatcher when `ai-harness` is available: `ai-harness sdd-continue --cwd <repo> [change]` or `ai-harness sdd-status --cwd <repo> --json --instructions [change]`. Treat native status JSON as authoritative over prompt inference. Route only by `nextRecommended` and dependency states; never infer from free text. If `blockedReasons` is non-empty, do not proceed to apply, archive, or terminal work. If `nextRecommended` is `verify`, verification/remediation may run only to refresh evidence; if `nextRecommended` is `resolve-blockers`, report `blockedReasons` and stop. If the binary is unavailable, fall back to the existing prompt contract and manual status schema.
 
 ### SDD Session Preflight (HARD GATE)
 
@@ -301,7 +301,7 @@ When launching `sdd-apply`, always include the resolved `delivery_strategy`, `ch
 
 Read the configured models from `opencode.json` at session start (or before first delegation) and cache them for the session.
 
-- Treat `agent.gentle-orchestrator.model` as authoritative when it is set.
+- Treat `agent.sdd-orchestrator.model` as authoritative when it is set.
 - Treat `agent.sdd-<phase>.model` as authoritative when it is set.
 - If a phase does not have an explicit model, use the default OpenCode runtime model for that agent and continue.
 - For named profiles, apply the same rule to the suffixed agent keys (for example, `sdd-apply-cheap`).

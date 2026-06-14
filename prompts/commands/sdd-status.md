@@ -18,7 +18,7 @@ CONTEXT:
 
 TASK:
 
-1. If the `ai-harness` binary is available, run `ai-harness sdd-status [change] --cwd <repo> --json --instructions` and treat its JSON as authoritative. If unavailable, read the installed shared status contract from this agent's skills directory and follow it: {{SKILLS_DIR}}/_shared/sdd-status-contract.md. Do not use a workspace-relative `skills/_shared/...` path.
+1. If the `ai-harness` binary is available, run `ai-harness sdd-status --cwd <repo> --json --instructions [change]` and treat its JSON as authoritative. If unavailable, read the installed shared status contract from this agent's skills directory and follow it: {{SKILLS_DIR}}/_shared/sdd-status-contract.md. Do not use a workspace-relative `skills/_shared/...` path.
 2. Resolve the active change:
    - If `{{ARGS}}` is provided, validate that exact change in the selected artifact store.
    - If omitted and exactly one active change exists, select it and say how it was selected.

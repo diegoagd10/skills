@@ -233,7 +233,7 @@ func writeFakeRepo(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(ocDir, "plugins"), 0o755); err != nil {
 		t.Fatalf("mkdir agent-clis/opencode/plugins: %v", err)
 	}
-	ocSource := `{"agent":{"gentle-orchestrator":{"prompt":"{file:{{HOME}}/.config/opencode/prompts/sdd/sdd-orchestrator.md}"}}}`
+	ocSource := `{"agent":{"sdd-orchestrator":{"prompt":"{file:{{HOME}}/.config/opencode/prompts/sdd/sdd-orchestrator.md}"}}}`
 	if err := os.WriteFile(filepath.Join(ocDir, "opencode.json"), []byte(ocSource), 0o644); err != nil {
 		t.Fatalf("write opencode.json source: %v", err)
 	}
@@ -290,13 +290,13 @@ func TestRunInstallGeneratesOpenCodeCommandFiles(t *testing.T) {
 		t.Fatalf("expected generated command at %s: %v", dest, err)
 	}
 	text := string(content)
-	if !strings.Contains(text, "agent: gentle-orchestrator") {
+	if !strings.Contains(text, "agent: sdd-orchestrator") {
 		t.Fatalf("generated command missing opencode frontmatter:\n%s", text)
 	}
 	if strings.Contains(text, "{{ORCHESTRATOR_AGENT}}") || strings.Contains(text, "{{ARGS}}") {
 		t.Fatalf("generated command still has placeholders:\n%s", text)
 	}
-	if !strings.Contains(text, "You are the `gentle-orchestrator`.") {
+	if !strings.Contains(text, "You are the `sdd-orchestrator`.") {
 		t.Fatalf("orchestrator not substituted:\n%s", text)
 	}
 	if !strings.Contains(res.stdout, dest) {
@@ -488,17 +488,17 @@ func TestOpenCodeAgentsHaveDefaultModels(t *testing.T) {
 		t.Fatalf("opencode.json is not valid JSON: %v", err)
 	}
 	want := map[string]string{
-		"gentle-orchestrator": "opencode/gpt-5",
+		"sdd-orchestrator":    "openai/gpt-5.5",
 		"sdd-init":            "minimax/MiniMax-M2.7",
-		"sdd-explore":         "opencode/gpt-5",
-		"sdd-propose":         "opencode/gpt-5",
-		"sdd-spec":            "opencode/gpt-5",
-		"sdd-design":          "opencode/gpt-5",
-		"sdd-tasks":           "opencode/gpt-5",
+		"sdd-explore":         "openai/gpt-5.5",
+		"sdd-propose":         "openai/gpt-5.5",
+		"sdd-spec":            "openai/gpt-5.5",
+		"sdd-design":          "openai/gpt-5.5",
+		"sdd-tasks":           "openai/gpt-5.5",
 		"sdd-apply":           "openai/gpt-5.4-mini",
-		"sdd-verify":          "opencode/gpt-5",
+		"sdd-verify":          "openai/gpt-5.5",
 		"sdd-archive":         "minimax/MiniMax-M2.7",
-		"sdd-onboard":         "opencode/gpt-5",
+		"sdd-onboard":         "openai/gpt-5.5",
 	}
 	for agent, model := range want {
 		if got := cfg.Agent[agent].Model; got != model {

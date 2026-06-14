@@ -11,7 +11,7 @@ SDD Session Preflight must already be complete for this session. It must include
 
 WORKFLOW:
 
-1. If the `ai-harness` binary is available, run `ai-harness sdd-continue [change] --cwd <repo>` and treat its dispatcher/status output as authoritative. If unavailable, resolve the active change using the status contract. If `{{ARGS}}` is missing and more than one active change exists, ask the user to choose and STOP. Do not guess.
+1. If the `ai-harness` binary is available, run `ai-harness sdd-continue --cwd <repo> [change]` and treat its dispatcher/status output as authoritative. If unavailable, resolve the active change using the status contract. If `{{ARGS}}` is missing and more than one active change exists, ask the user to choose and STOP. Do not guess.
 2. Produce or consume structured status before acting: schemaName, planningHome/changeRoot, artifactPaths/contextFiles, task progress, dependency states, next recommended action, blocked reasons, and actionContext.
 3. Check which artifacts already exist for the active change (proposal, specs, design, tasks)
 4. Determine the next phase needed based on the dependency graph:
@@ -37,4 +37,4 @@ Read the orchestrator instructions to coordinate this workflow. Do NOT execute p
 
 STATUS CONTRACT:
 
-Prefer `ai-harness sdd-continue [change] --cwd <repo>` when available. Otherwise read the installed shared status contract from this agent's skills directory and follow it: {{SKILLS_DIR}}/_shared/sdd-status-contract.md. Do not use a workspace-relative `skills/_shared/...` path. Carry `actionContext` and allowed edit roots into any sub-agent launch. If status reports `workspace-planning` with no allowed edit roots, do not launch apply/verify/archive work that would infer repo-local ownership.
+Prefer `ai-harness sdd-continue --cwd <repo> [change]` when available. Otherwise read the installed shared status contract from this agent's skills directory and follow it: {{SKILLS_DIR}}/_shared/sdd-status-contract.md. Do not use a workspace-relative `skills/_shared/...` path. Carry `actionContext` and allowed edit roots into any sub-agent launch. If status reports `workspace-planning` with no allowed edit roots, do not launch apply/verify/archive work that would infer repo-local ownership.

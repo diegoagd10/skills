@@ -69,7 +69,7 @@ const opencodeCwdNote = " In OpenCode Desktop (Electron) the parse-time interpol
 func OpenCodeProfile(commandDir string) Profile {
 	return Profile{
 		Name:              "opencode",
-		OrchestratorAgent: "gentle-orchestrator",
+		OrchestratorAgent: "sdd-orchestrator",
 		SkillsDir:         "~/.config/opencode/skills",
 		CwdNote:           opencodeCwdNote,
 		ArgsToken:         "$ARGUMENTS",

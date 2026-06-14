@@ -67,7 +67,7 @@ func TestGenerateSubstitutesPlaceholdersInBody(t *testing.T) {
 		strings.Contains(got, "{{CWD_NOTE}}") || strings.Contains(got, "{{SKILLS_DIR}}") {
 		t.Fatalf("rendered output still contains a placeholder:\n%s", got)
 	}
-	if !strings.Contains(got, "You are the `gentle-orchestrator`.") {
+	if !strings.Contains(got, "You are the `sdd-orchestrator`.") {
 		t.Fatalf("ORCHESTRATOR_AGENT not substituted:\n%s", got)
 	}
 	if !strings.Contains(got, "Change name: $ARGUMENTS") {
@@ -98,7 +98,7 @@ func TestGenerateEmitsOpenCodeFrontmatter(t *testing.T) {
 	if !strings.Contains(status, "description: Show structured SDD status for an active change") {
 		t.Fatalf("description not carried over:\n%s", status)
 	}
-	if !strings.Contains(status, "agent: gentle-orchestrator") {
+	if !strings.Contains(status, "agent: sdd-orchestrator") {
 		t.Fatalf("agent not emitted:\n%s", status)
 	}
 	statusFM := frontmatterOf(t, status)

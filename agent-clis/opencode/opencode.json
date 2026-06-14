@@ -1,8 +1,8 @@
 {
   "agent": {
-    "gentle-orchestrator": {
-      "model": "opencode/gpt-5",
-      "description": "Gentle AI SDD Orchestrator - coordinates sub-agents, never does work inline",
+    "sdd-orchestrator": {
+      "model": "openai/gpt-5.5",
+      "description": "SDD-Orchestrator - coordinates sub-agents, never does work inline",
       "mode": "primary",
       "permission": {
         "task": {
@@ -134,7 +134,7 @@
       }
     },
     "sdd-design": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Create technical design from proposals",
       "hidden": true,
       "mode": "subagent",
@@ -147,7 +147,7 @@
       }
     },
     "sdd-explore": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Investigate codebase and think through ideas",
       "hidden": true,
       "mode": "subagent",
@@ -173,7 +173,7 @@
       }
     },
     "sdd-onboard": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Guide user through a complete SDD cycle using their real codebase",
       "hidden": true,
       "mode": "subagent",
@@ -186,7 +186,7 @@
       }
     },
     "sdd-propose": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Create change proposals from explorations",
       "hidden": true,
       "mode": "subagent",
@@ -199,7 +199,7 @@
       }
     },
     "sdd-spec": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Write detailed specifications from proposals",
       "hidden": true,
       "mode": "subagent",
@@ -212,7 +212,7 @@
       }
     },
     "sdd-tasks": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Break down specs and designs into implementation tasks",
       "hidden": true,
       "mode": "subagent",
@@ -225,7 +225,7 @@
       }
     },
     "sdd-verify": {
-      "model": "opencode/gpt-5",
+      "model": "openai/gpt-5.5",
       "description": "Validate implementation against specs",
       "hidden": true,
       "mode": "subagent",

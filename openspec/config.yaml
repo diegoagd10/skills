@@ -1,0 +1,52 @@
+# OpenSpec project config — ai-harness-setup
+#
+# Only the four spec-driven ARTIFACTS accept rules: proposal, specs, design, tasks.
+# OpenSpec ignores rules for apply/verify/archive (they are workflow phases, not
+# artifacts) — that guidance lives in AGENTS.md, not here.
+#
+# YAML gotcha: any value containing ": " must be quoted, otherwise it is parsed as
+# a map instead of a string (e.g. - "Run: scripts/verify").
+
+schema: spec-driven
+
+context: |
+  Tech stack: Go 1.25.6 (cli/), TypeScript plugin (agent-clis/opencode/plugins/)
+  Architecture: Harness installer — installs AI dev tooling (opencode, claude, copilot) into $HOME
+  Testing: Go stdlib test runner (go test), bash E2E (e2e/e2e_test.sh), bun test for plugin
+  Style: Conventional commits, no Co-Authored-By
+
+rules:
+  proposal:
+    - Include a rollback plan for risky changes
+    - Identify the packages/modules affected by the change
+  specs:
+    - Use Given/When/Then format for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document architecture decisions with their rationale
+    - Add diagrams for complex flows when they reduce cognitive load
+  tasks:
+    - Group tasks by phase (infrastructure, implementation, testing)
+    - Use hierarchical numbering (1.1, 1.2, ...)
+    - Keep each task small enough to complete in one session
+
+testing:
+  strict_tdd: true
+  runner:
+    - name: Go test
+      command: go test ./...
+      layers:
+        - unit
+  e2e:
+    - name: bash E2E
+      command: bash e2e/e2e_test.sh
+  plugin:
+    - name: bun test
+      command: bun test
+      path: agent-clis/opencode/plugins/
+  coverage:
+    available: false
+  quality:
+    linter: false
+    type_checker: false
+    formatter: false

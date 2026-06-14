@@ -62,8 +62,8 @@ Tests live next to the code they test (Go requirement for white-box tests):
 ## Usage
 
 ```
-ai-harness sdd-status   [change] [--json] [--instructions] [--cwd <path>]
-ai-harness sdd-continue [change] [--json] [--cwd <path>]
+ai-harness sdd-status   [--cwd <path>] [--json] [--instructions] [change]
+ai-harness sdd-continue [--cwd <path>] [--json] [change]
 ai-harness install      [--repo <path>]
 ai-harness uninstall    [--repo <path>]
 ```
